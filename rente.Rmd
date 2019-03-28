@@ -1,0 +1,206 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+
+library(Quandl)
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+recessions <- read.table(textConnection("Peak, Trough
+                                        1857-06-01, 1858-12-01
+                                        1860-10-01, 1861-06-01
+                                        1865-04-01, 1867-12-01
+                                        1869-06-01, 1870-12-01
+                                        1873-10-01, 1879-03-01
+                                        1882-03-01, 1885-05-01
+                                        1887-03-01, 1888-04-01
+                                        1890-07-01, 1891-05-01
+                                        1893-01-01, 1894-06-01
+                                        1895-12-01, 1897-06-01
+                                        1899-06-01, 1900-12-01
+                                        1902-09-01, 1904-08-01
+                                        1907-05-01, 1908-06-01
+                                        1910-01-01, 1912-01-01
+                                        1913-01-01, 1914-12-01
+                                        1918-08-01, 1919-03-01
+                                        1920-01-01, 1921-07-01
+                                        1923-05-01, 1924-07-01
+                                        1926-10-01, 1927-11-01
+                                        1929-08-01, 1933-03-01
+                                        1937-05-01, 1938-06-01
+                                        1945-02-01, 1945-10-01
+                                        1948-11-01, 1949-10-01
+                                        1953-07-01, 1954-05-01
+                                        1957-08-01, 1958-04-01
+                                        1960-04-01, 1961-02-01
+                                        1969-12-01, 1970-11-01
+                                        1973-11-01, 1975-03-01
+                                        1980-01-01, 1980-07-01
+                                        1981-07-01, 1982-11-01
+                                        1990-07-01, 1991-03-01
+                                        2001-03-01, 2001-11-01
+                                        2007-12-01, 2009-06-01"), 
+                         sep = ',', 
+                         colClasses = c('Date', 'Date'), 
+                         header = TRUE)
+
+recessions.t <- subset(recessions, Peak >= min("1980-01-01")) %>% mutate(usr = "a")
+recessions.t2 <- subset(recessions, Peak >= min("1948-01-01")) %>% mutate(usr = "a")
+```
+
+
+
+
+
+
+```{r}
+ZERO <- Quandl("FED/SVENY")
+
+ZERO_Y <- ZERO %>% 
+  mutate(year = year(Date)) %>% 
+  group_by(year) %>% 
+  summarise(avg = mean(SVENY05))
+
+ZERO_m <- ZERO %>% 
+  mutate(month = month(Date),
+         year = year(Date)) %>% 
+  group_by(year, month) %>% 
+  summarise(avg = mean(SVENY05))
+
+INFL <- Quandl("FRED/DDOE01USA086NWDB") 
+
+INFL_Y <- INFL %>% 
+  arrange(Date) %>% 
+  mutate(Value = c(NA, diff(log(.$Value))*100),
+         year=year(Date))
+
+UNEMP <- Quandl("FRED/UNRATE")
+
+UNEMP_Y <- UNEMP %>% 
+  mutate(year = year(Date)) %>% 
+  group_by(year) %>% 
+  summarise(avg = mean(Value))
+```
+
+
+
+
+
+
+
+
+```{r}
+v.unemp <- subset(UNEMP, Date >= "1965-01-01" & Date < "2019-01-01")
+v.ZERO_m <- subset(ZERO_m, year >= 1965 & year < 2019)
+
+library(tseries)
+library(urca)
+library(vars)
+
+adf.test(v.unemp$Value)
+adf.test(v.ZERO_m$avg)
+
+df = data.frame(unemp = v.unemp$Value, zero = v.ZERO_m$avg)
+
+summary(VAR(df, p = 2))
+plot(irf(VAR(df, p = 1)))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# Plotting Zero cupon bond yield ------------------------------------------
+
+ZERO[,c(1,2)] %>% 
+  ggplot(aes(Date, SVENY01)) +
+  geom_line()
+
+ZERO %>% 
+  gather(variable, value, -Date) %>% 
+  filter(Date > "1986-01-01") %>% 
+  ggplot(aes(Date, value, color=as.numeric(as.factor(variable)))) +
+  geom_line()
+
+ZERO %>% 
+  gather(variable, value, -Date) %>% 
+  filter(Date > "2010-01-01") %>% 
+  ggplot(aes(variable, value, color=Date, group = Date)) +
+  geom_line(size=0.4, alpha = 0.4)
+
+
+ZERO %>% 
+  select(SVENY03, SVENY05, Date) %>% 
+  gather(variable, value, -Date) %>% 
+  ggplot(aes(Date, value, color=variable)) +
+  geom_line()
+
+ZERO %>% 
+  filter(Date > "1980-01-01") %>% 
+  mutate(diff = SVENY05 - SVENY01) %>% 
+  dplyr::select(diff, Date) %>%
+  gather(variable, value, -Date) %>% 
+  ggplot(aes(Date, value)) +
+  geom_line() +
+  geom_rect(data = recessions.t, aes(xmin = Peak, xmax = Trough, ymin = -Inf, ymax = +Inf), fill="grey", alpha=0.6, inherit.aes = F) +
+  labs(title = "DIfference between 1yr and 5yr zero cupon bond yield",
+       subtitle = "In the period: 1980 - 2019", x="", y="")
+
+
+UNEMP %>% ggplot(aes(Date, Value)) + 
+  geom_line() +
+  geom_rect(data = recessions.t2, aes(xmin = Peak, xmax = Trough, ymin = -Inf, ymax = +Inf), alpha=0.3, inherit.aes = F) +
+  labs(title = "Unemployment ",
+       subtitle = "In the period: 1948 - 2019", x="", y="")
+
+library(forecast)
+auto.arima(UNEMP$Value)
+```
+
+
+
+```{r}
+ggplot(INFL, aes(Date, Value)) +
+  geom_line()
+
+ggplot(INFL_Y[-1,], aes(Date, Value)) +
+  geom_line()
+```
+
+
+
+```{r}
+mat <- cor(ZERO[,-1][c(1:8000),])
+
+new <- mat %>% 
+  as.tibble %>% 
+  rownames_to_column('Var1') %>% 
+  gather(Var2, value, -Var1) %>% 
+  mutate(Var1 = factor(Var1, levels = 1:30))
+
+ggplot(new, aes(Var1, Var2)) +
+  geom_tile(aes(fill = value)) + 
+  geom_text(aes(label = round(value, 2)), size=1.5)
+```
+
+
+

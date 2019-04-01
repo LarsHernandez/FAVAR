@@ -1,5 +1,9 @@
 
 
+
+
+# Packages ----------------------------------------------------------------
+
 library(forecast)
 library(tidyverse)
 library(Quandl)
@@ -7,6 +11,10 @@ library(tseries)
 library(vars)
 library(xtable)
 library(RColorBrewer)
+library(lubridate)
+
+
+# Data --------------------------------------------------------------------
 
 key <- "WB3WH-RUprDSyH2xaLbu"
 
@@ -37,22 +45,75 @@ irff <- matrix(nrow = 24, ncol = n.columns)
 for (i in 1:n.columns) {
   result <- pp %>% 
     filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(72 + i)) %>% 
-    dplyr::select(-Date) %>% VAR(p = 1)
+    dplyr::select(-Date) %>% VAR(p = 2)
   irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 23)$irf$FFR
 }
 
 
 
 
+# Simple plot -------------------------------------------------------------
+
+x <- c(1:24)
+y <- seq(1966, 2019, length.out = 646)
+z <- irff
+
+# Create a function interpolating colors in the range of specified colors
+jet.colors <- colorRampPalette(brewer.pal(9,"YlGnBu"))
+
+# Generate the desired number of colors from this palette
+nbcol <- 100
+color <- jet.colors(nbcol)
+
+# Compute the z-value at the facet centres
+zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)])/4
+
+# Recode facet z-values into color indices
+#facetcol <- cut(zfacet, nbcol)
+facetcol <- cut(zfacet, breaks = seq(-0.06,0.13,length.out = 100))
+
+a <- persp(x, y, z, col = color[facetcol],
+           zlim = c(-0.10, 0.15),
+           xlab = "Months", ylab = "", zlab = "%",
+           theta = 40, phi = 30, expand = 0.45,
+           ticktype = "detailed", lwd = 0.1)
 
 
-# safdsf ------------------------------------------------------------------
+text(trans3d(0, 1970.0, 0.175, a), "Burns",     col = "black")
+text(trans3d(0, 1979.8, 0.175, a), "Volcker",   col = "black")
+text(trans3d(0, 1987.8, 0.175, a), "Greenspan", col = "black")
+text(trans3d(0, 2006.0, 0.175, a), "Bernanke",  col = "black")
+text(trans3d(0, 2014.0, 0.175, a), "Yellen",    col = "black")
 
-library(RColorBrewer)
+
+lines(trans3d(x = 0, y = 1970, z = c(0.16,-0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1979, z = c(0.16, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1987, z = c(0.16, 0.05), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2006, z = c(0.16, 0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2014, z = c(0.16, 0.04), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Functions for adding alpha ----------------------------------------------
-
 
 addalpha <- function(colors, alpha = 1.0) {
   r <- col2rgb(colors, alpha=T)
@@ -62,7 +123,6 @@ addalpha <- function(colors, alpha = 1.0) {
   return(rgb(r[1,], r[2,], r[3,], r[4,]))
 }
 
-# colorRampPaletteAlpha()
 colorRampPaletteAlpha <- function(colors, n=32, interpolate='linear') {
   # Create the color ramp normally
   cr <- colorRampPalette(colors, interpolate=interpolate)(n)
@@ -81,11 +141,9 @@ colorRampPaletteAlpha <- function(colors, n=32, interpolate='linear') {
 
 
 # Plot --------------------------------------------------------------------
-
-
 x <- c(1:24)
 y <- seq(1966, 2019, length.out = 646)
-z <- irff
+z <- irff2
 
 # Create a function interpolating colors in the range of specified colors
 color <- colorRampPaletteAlpha(addalpha(brewer.pal(9,"YlGnBu"),1),100)
@@ -99,28 +157,28 @@ zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)]
 
 # Recode facet z-values into color indices
 facetcol <- cut(zfacet, nbcol)
+facetcol <- cut(zfacet, breaks = seq(-0.10,0.15,length.out = 100))
 
-
-#par(mfrow=c(1,2))
 a <- persp(x, y, z, col = color[facetcol],
            xlab = "Months", ylab = "", zlab = "%",
+           zlim = c(-0.10, 0.15),
            theta = 40, phi = 30, expand = 0.45,
            ticktype = "detailed", lwd = 0.1,
            border = rgb(red = 0, green = 0, blue = 0, alpha = 0.2))
 
 
-text(trans3d(0, 1970.0, 0.145, a), "Burns",     col = "black")
-text(trans3d(0, 1979.8, 0.145, a), "Volcker",   col = "black")
-text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
-text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
-text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
+text(trans3d(0, 1970.0, 0.175, a), "Burns",     col = "black")
+text(trans3d(0, 1979.8, 0.175, a), "Volcker",   col = "black")
+text(trans3d(0, 1987.8, 0.175, a), "Greenspan", col = "black")
+text(trans3d(0, 2006.0, 0.175, a), "Bernanke",  col = "black")
+text(trans3d(0, 2014.0, 0.175, a), "Yellen",    col = "black")
 
 
-lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1970, z = c(0.16,-0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1979, z = c(0.16, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1987, z = c(0.16, 0.05), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2006, z = c(0.16, 0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2014, z = c(0.16, 0.04), pmat = a), lwd = 0.2, lty = 2,  col = "black")
 
 
 

@@ -63,12 +63,15 @@ colnames(FAVAR)[-1] <- str_sub(colnames(FAVAR)[-1], 6)
 FAVAR_S <- FAVAR[sapply(FAVAR, function(x) !any(is.na(x)))]
 
 # Transform according to auto.arima
+degree <- function(x) if(auto.arima(x)$arma[6] == 1) c(NA, diff(x)) else if(auto.arima(x)$arma[6] == 2) c(NA,NA, diff(diff(x))) else x
+
 FAVAR_T <- FAVAR_S %>% 
-  mutate_each(.vars = -Date, funs = function(x) if(auto.arima(x)$arma[6] == 1) c(NA, diff(x)) else c(NA,NA, diff(diff(x)))) %>% 
-  mutate_each(.vars = -Date, funs(scale))
+  mutate_at(vars(-Date), funs(degree)) %>% 
+  mutate_at(vars(-Date), funs(scale))
 
 # Remove NA's due to differencing 
 FAVAR_T <- FAVAR_T[-c(1,2),]
+
 
 
 
@@ -89,14 +92,14 @@ screeplot(summary(prcomp(FAVAR_T[,-1])), type="lines", npcs = 15)
 aload <- abs(FAVAR_PCA$rotation)
 loadings <- sweep(aload, 2, colSums(aload), "/") %>% as.data.frame %>% rownames_to_column("name")
 
-P1 <- loadings %>% dplyr::select(name, PC1) %>% top_n(8) %>% arrange(desc(PC1)) %>% mutate(PC1 = 100 * PC1, name = substr(name, start = 1, stop = 6))
-P2 <- loadings %>% dplyr::select(name, PC2) %>% top_n(8) %>% arrange(desc(PC2)) %>% mutate(PC2 = 100 * PC2, name = substr(name, start = 1, stop = 6))
-P3 <- loadings %>% dplyr::select(name, PC3) %>% top_n(8) %>% arrange(desc(PC3)) %>% mutate(PC3 = 100 * PC3, name = substr(name, start = 1, stop = 6))
-P4 <- loadings %>% dplyr::select(name, PC4) %>% top_n(8) %>% arrange(desc(PC4)) %>% mutate(PC4 = 100 * PC4, name = substr(name, start = 1, stop = 6))
-P5 <- loadings %>% dplyr::select(name, PC5) %>% top_n(8) %>% arrange(desc(PC5)) %>% mutate(PC5 = 100 * PC5, name = substr(name, start = 1, stop = 6))
-P6 <- loadings %>% dplyr::select(name, PC6) %>% top_n(8) %>% arrange(desc(PC6)) %>% mutate(PC6 = 100 * PC6, name = substr(name, start = 1, stop = 6))
-P7 <- loadings %>% dplyr::select(name, PC7) %>% top_n(8) %>% arrange(desc(PC7)) %>% mutate(PC7 = 100 * PC7, name = substr(name, start = 1, stop = 6))
-P8 <- loadings %>% dplyr::select(name, PC8) %>% top_n(8) %>% arrange(desc(PC8)) %>% mutate(PC8 = 100 * PC8, name = substr(name, start = 1, stop = 6))
+P1 <- loadings %>% dplyr::select(name, PC1) %>% top_n(8,PC1) %>% arrange(desc(PC1)) %>% mutate(PC1 = 100 * PC1, name = substr(name, start = 1, stop = 6))
+P2 <- loadings %>% dplyr::select(name, PC2) %>% top_n(8,PC2) %>% arrange(desc(PC2)) %>% mutate(PC2 = 100 * PC2, name = substr(name, start = 1, stop = 6))
+P3 <- loadings %>% dplyr::select(name, PC3) %>% top_n(8,PC3) %>% arrange(desc(PC3)) %>% mutate(PC3 = 100 * PC3, name = substr(name, start = 1, stop = 6))
+P4 <- loadings %>% dplyr::select(name, PC4) %>% top_n(8,PC4) %>% arrange(desc(PC4)) %>% mutate(PC4 = 100 * PC4, name = substr(name, start = 1, stop = 6))
+P5 <- loadings %>% dplyr::select(name, PC5) %>% top_n(8,PC5) %>% arrange(desc(PC5)) %>% mutate(PC5 = 100 * PC5, name = substr(name, start = 1, stop = 6))
+P6 <- loadings %>% dplyr::select(name, PC6) %>% top_n(8,PC6) %>% arrange(desc(PC6)) %>% mutate(PC6 = 100 * PC6, name = substr(name, start = 1, stop = 6))
+P7 <- loadings %>% dplyr::select(name, PC7) %>% top_n(8,PC7) %>% arrange(desc(PC7)) %>% mutate(PC7 = 100 * PC7, name = substr(name, start = 1, stop = 6))
+P8 <- loadings %>% dplyr::select(name, PC8) %>% top_n(8,PC8) %>% arrange(desc(PC8)) %>% mutate(PC8 = 100 * PC8, name = substr(name, start = 1, stop = 6))
 
 xtable(cbind(P1,P2,P3,P4))
 xtable(cbind(P5,P6,P7,P8))
@@ -113,10 +116,7 @@ FFR <- Quandl("FRED/FEDFUNDS", api_key = key) %>%
 INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>% 
   filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
   arrange(Date) %>% 
-  mutate(Value = c(NA, diff(log(Value))))
-
-
-
+  mutate(Value = c(NA, diff(log(Value))*100))
 
 
 
@@ -124,14 +124,86 @@ variables <- factors
 variables$FFR <- FFR$Value[-c(1,2)]
 variables$INFL <- INFL$Value[-c(1,2)]
 
+
+
 VARselect(variables[,-1])
 
-m <- VAR(variables[,-c(1,2:9)], p = 4)
-
+m <- VAR(variables[,-c(1,2:9)], p = 2)
 m
 
 
 plot(irf(m, impulse = "FFR", response = "INFL", n.ahead = 24))
+
+
+
+
+# TEST --------------------------------------------------------------------
+n.columns <- 646 # 718m - 72m
+irff <- matrix(nrow = 24, ncol = n.columns)
+
+for (i in 1:n.columns) {
+  result <- variables %>% 
+    filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(72 + i)) %>% 
+    dplyr::select(-Date) %>% VAR(p = 2)
+  irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 23)$irf$FFR
+}
+
+
+
+
+# Simple plot -------------------------------------------------------------
+
+x <- c(1:24)
+y <- seq(1966, 2019, length.out = 646)
+z <- irff2
+
+# Create a function interpolating colors in the range of specified colors
+jet.colors <- colorRampPalette(brewer.pal(9,"YlGnBu"))
+
+# Generate the desired number of colors from this palette
+nbcol <- 100
+color <- jet.colors(nbcol)
+
+# Compute the z-value at the facet centres
+zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)])/4
+
+# Recode facet z-values into color indices
+facetcol <- cut(zfacet, nbcol)
+
+
+a <- persp(x, y, z, col = color[facetcol],
+           zlim = c(-0.10, 0.15),
+           xlab = "Months", ylab = "", zlab = "%",
+           theta = 40, phi = 30, expand = 0.45,
+           ticktype = "detailed", lwd = 0.1)
+
+
+text(trans3d(0, 1970.0, 0.145, a), "Burns",     col = "black")
+text(trans3d(0, 1979.8, 0.145, a), "Volcker",   col = "black")
+text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
+text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
+text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
+
+
+lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+
+
+
+# TEST --------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
 
 variables %>% 
   mutate(Date = factors[,1]) %>% 
@@ -140,8 +212,6 @@ variables %>%
   geom_line() + 
   facet_wrap(~variable, nrow=2, scales = "free") +
   th
-
-
 
 
 
@@ -278,36 +348,6 @@ ggplot(ir, aes(x = t, y = Value, group = Variable))  +
 
 
 
-corstarsl <- function(x){ 
-  require(Hmisc) 
-  x <- as.matrix(x) 
-  R <- rcorr(x)$r 
-  p <- rcorr(x)$P 
-  
-  ## define notions for significance levels; spacing is important.
-  mystars <- ifelse(p < .001, "***", ifelse(p < .01, "** ", ifelse(p < .05, "* ", " ")))
-  
-  ## trunctuate the matrix that holds the correlations to two decimal
-  R <- format(round(cbind(rep(-1.11, ncol(x)), R)*100, 2))[,-1] 
-  
-  ## build a new matrix that includes the correlations with their apropriate stars 
-  Rnew <- matrix(paste(R, mystars, sep=""), ncol=ncol(x)) 
-  diag(Rnew) <- paste(diag(R), " ", sep="") 
-  rownames(Rnew) <- colnames(x) 
-  colnames(Rnew) <- paste(colnames(x), "", sep="") 
-  
-  ## remove upper triangle
-  Rnew <- as.matrix(Rnew)
-  Rnew[upper.tri(Rnew, diag = TRUE)] <- ""
-  Rnew <- as.data.frame(Rnew) 
-  
-  ## remove last column and return the matrix (which is now a data frame)
-  Rnew <- cbind(Rnew[1:length(Rnew)-1])
-  return(Rnew) 
-}
-
-
-
 
 
 
@@ -332,7 +372,7 @@ colnames(ttt) <- c("Date",
                    "6. HOUST\nTotal New Privately Owned\nHousing Units Started",
                    "7. M2REAL\nReal M2 Money Stock",
                    "8. M2SL\nM2 Money Stock"
-                   )
+)
 
 ttt %>% gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + geom_line() + 
@@ -342,6 +382,21 @@ ttt %>% gather(variable, value, -Date) %>%
 
 
 
+
+
+# Summary statistics ------------------------------------------------------
+
+
+stargazer(FAVAR, summary.stat = c("n", "mean", "sd", "min", "max"))
+
+
+res <- apply(FAVAR_S[,-1], FUN = function(x) auto.arima(x)$arma[6], MARGIN = 2)
+
+library(xtable)
+xtable(res)
+res
+
+tibble(res, names(res))
 
 
 

@@ -38,6 +38,13 @@ colnames(ts)[special] <- name
 
 
 
+
+
+# SLOW --------------------------------------------------------------------
+
+#slow <- prcomp(ts[-(c(54:101, 119,120))], rank=5)$x
+  
+
 # Factors -----------------------------------------------------------------
 
 Fak <- prcomp(ts[-77], rank=5)$x
@@ -45,7 +52,7 @@ Fak <- prcomp(ts[-77], rank=5)$x
 #irf(VAR(cbind(ts[77], Fak), p = 13), impulse = "FFR", response = "FFR",n.ahead = 48)
 
 
-obj <- irf(VAR(cbind(ts[77], Fak), p = 13), impulse = "FFR", n.ahead = 48)
+obj <- irf(VAR(cbind(ts[77], slow), p = 13), impulse = "FFR", n.ahead = 48)
 eigen <- prcomp(ts[-77], rank=5)$rotation
 
 val <- obj[1]$irf$FFR[,-1] %*% t(eigen) %>% 

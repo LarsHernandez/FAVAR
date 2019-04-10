@@ -96,9 +96,9 @@ stargazer::stargazer(model$varresult$FFR,
 
 # VAR(13) model -----------------------------------------------------------
 
-m <- VAR(pp[,c(2:4)], p = 2)
+m <- VAR(pp[,c(2:4)], p = 13)
 
-data <- irf(m, n.ahead = 13, cumulative = F)
+data <- irf(m, n.ahead = 49, cumulative = F)
 variables <- data$irf %>% names
 
 ir <- lapply(1:length(variables), function(e){
@@ -126,10 +126,10 @@ ggplot(ir, aes(x = t, y = Value, group = Variable))  +
   geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
   geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_x_continuous("Lags", limits = c(0,12), breaks = seq(0, 12, 1)) +
-  scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(0,0.1,0.2,0.3,0.4,0.5)) +
+  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 6)) +
+  scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(-0.1,-0.05,0,0.05,0.10,0.15)) +
   facet_grid(Variable ~ impulse, switch = "y") +
-  coord_cartesian(ylim = c(-0.1, 0.5)) +
+  coord_cartesian(ylim = c(-0.1, 0.15)) +
   th
 
 
@@ -148,23 +148,22 @@ xtable(cbind(round(fe$INFL[c(1,4,8,12),],2)*100,
 
 # Different orderings of variables ----------------------------------------
 
-df <- tibble(R1 = irf(VAR(pp[c(1,2,3,4)][,c(2:4)], p = 2), impulse = "FFR", response = "INFL", n.ahead = 24)$irf$FFR,
-             R2 = irf(VAR(pp[c(1,2,4,3)][,c(2:4)], p = 2), impulse = "FFR", response = "INFL", n.ahead = 24)$irf$FFR,
-             R3 = irf(VAR(pp[c(1,3,2,4)][,c(2:4)], p = 2), impulse = "FFR", response = "INFL", n.ahead = 24)$irf$FFR,
-             R4 = irf(VAR(pp[c(1,3,4,2)][,c(2:4)], p = 2), impulse = "FFR", response = "INFL", n.ahead = 24)$irf$FFR,
-             R5 = irf(VAR(pp[c(1,4,2,3)][,c(2:4)], p = 2), impulse = "FFR", response = "INFL", n.ahead = 24)$irf$FFR,
-             R6 = irf(VAR(pp[c(1,4,3,2)][,c(2:4)], p = 2), impulse = "FFR", response = "INFL", n.ahead = 24)$irf$FFR,
-             N  = c(0:24))
+df <- tibble(R1 = as.vector(irf(VAR(pp[c(1,2,3,4)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
+             R2 = as.vector(irf(VAR(pp[c(1,2,4,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
+             R3 = as.vector(irf(VAR(pp[c(1,3,2,4)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
+             R4 = as.vector(irf(VAR(pp[c(1,3,4,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
+             R5 = as.vector(irf(VAR(pp[c(1,4,2,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
+             R6 = as.vector(irf(VAR(pp[c(1,4,3,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
+             N  = c(0:48))
 
 df %>% gather(variable, Change, -N) %>% 
   group_by(variable) %>% 
   mutate(Accumulated = cumsum(Change)) %>% 
   gather(type, value, -N, -variable) %>% 
   ggplot(aes(N, value, linetype = variable)) + 
-  #scale_colour_manual(values = brewer.pal(n = 8, "GnBu")[3:8]) +
   facet_wrap(~type, scales = "free")+
   geom_line(size = 0.4) + 
-  scale_x_continuous(breaks = seq(0,24, by = 2), limits = c(0, 24)) +
+  scale_x_continuous(breaks = seq(0,48, by = 6), limits = c(0, 48)) +
   labs(linetype = "Order", y = "", x = "Lags") +
   th + theme(axis.title.y=element_blank())
 
@@ -279,3 +278,4 @@ RMSE(prod.arima$pred, actual$PROD)
 
 
 
+cor(FAVAR_T$IPMANSICS, FAVAR_PCA$x[,1])

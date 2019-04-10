@@ -44,13 +44,14 @@ FRED <- c("RPI","W875RX1","DPCERA3M086SBEA","CMRMTSPL","RETAIL","INDPRO","IPFPNS
           "USTRADE","USFIRE","USGOVT","CES0600000007","AWOTMAN","AWHMAN","HOUST","HOUSTNE","HOUSTMW","HOUSTS","HOUSTW",
           "PERMIT","PERMITNE","PERMITMW","PERMITS","PERMITW","ACOGNO","AMDMNO","ANDENO","AMDMUO","BUSINV",
           "ISRATIO","M1SL","M2SL","M2REAL","AMBSL","TOTRESNS","NONBORRES","BUSLOANS","REALLN","NONREVSL","CONSPI",
-          "FEDFUNDS","CP3M","TB3MS","TB6MS","GS1","GS5","GS10","AAA","BAA","COMPAPFF","TB3SMFFM","TB6SMFFM","T1YFFM",
+          "CP3M","TB3MS","TB6MS","GS1","GS5","GS10","AAA","BAA","COMPAPFF","TB3SMFFM","TB6SMFFM","T1YFFM",
           "T5YFFM","T10YFFM","AAAFFM","BAAFFM","TWEXMMTH","EXSZUS","EXJPUS","EXUSUK","EXCAUS","WPSFD49207",
           "WPSFD49502","WPSID61","WPSID62","OILPRICE","PPICMM","CPIAUCSL","CPIAPPSL","CPITRNSL","CPIMEDSL",
           "CUSR0000SAC","CUSR0000SAD","CUSR0000SAS","CPIULFSL","CUSR0000SA0L2","CUSR0000SA0L5","PCEPI",
           "DDURRG3M086SBEA","DNDGRG3M086SBEA","DSERRG3M086SBEA","CES0600000008","CES2000000008","CES3000000008",
           "UMCSENT","MZMSL","DTCOLNVHFNM","DTCTHFNM","INVEST","VXOCLS")
 
+# "FEDFUNDS"
 # Download data for the FAVAR - If too much is downloaded the API gets timeout
 FAVAR <- Quandl(paste0("FRED/", FRED), api_key = key) %>% 
   filter(Date >= "1959-01-01", Date < "2019-01-01")
@@ -73,36 +74,39 @@ FAVAR_T <- FAVAR_S %>%
 FAVAR_T <- FAVAR_T[-c(1,2),]
 
 
+aa <- cor(cbind(FAVAR_T[,-1], FFR[-c(1,2),-1], INFL[-c(1,2),-1]))
 
 
 
 # PCA Factors -------------------------------------------------------------
 
-FAVAR_PCA <- prcomp(FAVAR_T[,-1], rank. = 8)
-summary(FAVAR_PCA)
+FAVAR_PCA <- prcomp(FAVAR_T[,-1], rank. = 5)
+#summary(FAVAR_PCA)
 
-factors <- cbind(FAVAR_T[c("Date")], FAVAR_PCA$x)
+#factors <- cbind(FAVAR_T[c("Date")], FAVAR_PCA$x)
+#xtable(summary(FAVAR_PCA)$importance[,1:8],digits=4) 
+#screeplot(summary(prcomp(FAVAR_T[,-1])), type="lines", npcs = 15)
 
-xtable(summary(FAVAR_PCA)$importance[,1:8],digits=4) 
 
-screeplot(summary(prcomp(FAVAR_T[,-1])), type="lines", npcs = 15)
+
+
 
 # Factor loadings ---------------------------------------------------------
-
-aload <- abs(FAVAR_PCA$rotation)
-loadings <- sweep(aload, 2, colSums(aload), "/") %>% as.data.frame %>% rownames_to_column("name")
-
-P1 <- loadings %>% dplyr::select(name, PC1) %>% top_n(8,PC1) %>% arrange(desc(PC1)) %>% mutate(PC1 = 100 * PC1, name = substr(name, start = 1, stop = 6))
-P2 <- loadings %>% dplyr::select(name, PC2) %>% top_n(8,PC2) %>% arrange(desc(PC2)) %>% mutate(PC2 = 100 * PC2, name = substr(name, start = 1, stop = 6))
-P3 <- loadings %>% dplyr::select(name, PC3) %>% top_n(8,PC3) %>% arrange(desc(PC3)) %>% mutate(PC3 = 100 * PC3, name = substr(name, start = 1, stop = 6))
-P4 <- loadings %>% dplyr::select(name, PC4) %>% top_n(8,PC4) %>% arrange(desc(PC4)) %>% mutate(PC4 = 100 * PC4, name = substr(name, start = 1, stop = 6))
-P5 <- loadings %>% dplyr::select(name, PC5) %>% top_n(8,PC5) %>% arrange(desc(PC5)) %>% mutate(PC5 = 100 * PC5, name = substr(name, start = 1, stop = 6))
-P6 <- loadings %>% dplyr::select(name, PC6) %>% top_n(8,PC6) %>% arrange(desc(PC6)) %>% mutate(PC6 = 100 * PC6, name = substr(name, start = 1, stop = 6))
-P7 <- loadings %>% dplyr::select(name, PC7) %>% top_n(8,PC7) %>% arrange(desc(PC7)) %>% mutate(PC7 = 100 * PC7, name = substr(name, start = 1, stop = 6))
-P8 <- loadings %>% dplyr::select(name, PC8) %>% top_n(8,PC8) %>% arrange(desc(PC8)) %>% mutate(PC8 = 100 * PC8, name = substr(name, start = 1, stop = 6))
-
-xtable(cbind(P1,P2,P3,P4))
-xtable(cbind(P5,P6,P7,P8))
+# 
+# aload <- abs(FAVAR_PCA$rotation)
+# loadings <- sweep(aload, 2, colSums(aload), "/") %>% as.data.frame %>% rownames_to_column("name")
+# 
+# P1 <- loadings %>% dplyr::select(name, PC1) %>% top_n(8,PC1) %>% arrange(desc(PC1)) %>% mutate(PC1 = 100 * PC1, name = substr(name, start = 1, stop = 6))
+# P2 <- loadings %>% dplyr::select(name, PC2) %>% top_n(8,PC2) %>% arrange(desc(PC2)) %>% mutate(PC2 = 100 * PC2, name = substr(name, start = 1, stop = 6))
+# P3 <- loadings %>% dplyr::select(name, PC3) %>% top_n(8,PC3) %>% arrange(desc(PC3)) %>% mutate(PC3 = 100 * PC3, name = substr(name, start = 1, stop = 6))
+# P4 <- loadings %>% dplyr::select(name, PC4) %>% top_n(8,PC4) %>% arrange(desc(PC4)) %>% mutate(PC4 = 100 * PC4, name = substr(name, start = 1, stop = 6))
+# P5 <- loadings %>% dplyr::select(name, PC5) %>% top_n(8,PC5) %>% arrange(desc(PC5)) %>% mutate(PC5 = 100 * PC5, name = substr(name, start = 1, stop = 6))
+# P6 <- loadings %>% dplyr::select(name, PC6) %>% top_n(8,PC6) %>% arrange(desc(PC6)) %>% mutate(PC6 = 100 * PC6, name = substr(name, start = 1, stop = 6))
+# P7 <- loadings %>% dplyr::select(name, PC7) %>% top_n(8,PC7) %>% arrange(desc(PC7)) %>% mutate(PC7 = 100 * PC7, name = substr(name, start = 1, stop = 6))
+# P8 <- loadings %>% dplyr::select(name, PC8) %>% top_n(8,PC8) %>% arrange(desc(PC8)) %>% mutate(PC8 = 100 * PC8, name = substr(name, start = 1, stop = 6))
+# 
+# xtable(cbind(P1,P2,P3,P4))
+# xtable(cbind(P5,P6,P7,P8))
 
 
 
@@ -120,42 +124,37 @@ INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>%
 
 
 
-variables <- factors
-variables$FFR <- FFR$Value[-c(1,2)]
-variables$INFL <- INFL$Value[-c(1,2)]
+variables <- tibble(FFR = FFR$Value[-c(1,2)],
+                    INFL =INFL$Value[-c(1,2)])
 
+variables <- cbind(FAVAR_T[c("Date")], variables, FAVAR_PCA$x)
 
+#VARselect(variables[,-1])
 
-VARselect(variables[,-1])
-
-m <- VAR(variables[,-c(1,2:9)], p = 2)
+m <- VAR(variables[,-c(1)], p = 13)
 m
 
 
-plot(irf(m, impulse = "FFR", response = "INFL", n.ahead = 24))
+#plot(irf(m, impulse = "FFR", response = "INFL", n.ahead = 24))
 
 
 
 
-# TEST --------------------------------------------------------------------
-n.columns <- 646 # 718m - 72m
-irff <- matrix(nrow = 24, ncol = n.columns)
+# Persp plot ---------------------------------------------------------------
+
+n.columns <- 598 # 718m - 72m
+irff <- matrix(nrow = 44, ncol = n.columns)
 
 for (i in 1:n.columns) {
   result <- variables %>% 
-    filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(72 + i)) %>% 
+    filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(120 + i)) %>% 
     dplyr::select(-Date) %>% VAR(p = 2)
-  irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 23)$irf$FFR
+  irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 43)$irf$FFR
 }
 
-
-
-
-# Simple plot -------------------------------------------------------------
-
-x <- c(1:24)
-y <- seq(1966, 2019, length.out = 646)
-z <- irff2
+x <- c(1:44)
+y <- seq(1970, 2019, length.out = 598)
+z <- irff
 
 # Create a function interpolating colors in the range of specified colors
 jet.colors <- colorRampPalette(brewer.pal(9,"YlGnBu"))
@@ -170,20 +169,17 @@ zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)]
 # Recode facet z-values into color indices
 facetcol <- cut(zfacet, nbcol)
 
-
 a <- persp(x, y, z, col = color[facetcol],
            zlim = c(-0.10, 0.15),
            xlab = "Months", ylab = "", zlab = "%",
            theta = 40, phi = 30, expand = 0.45,
            ticktype = "detailed", lwd = 0.1)
 
-
 text(trans3d(0, 1970.0, 0.145, a), "Burns",     col = "black")
 text(trans3d(0, 1979.8, 0.145, a), "Volcker",   col = "black")
 text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
 text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
 text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
-
 
 lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
 lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
@@ -193,45 +189,16 @@ lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04), pmat = a), lwd = 0.2, lty = 2,
 
 
 
-# TEST --------------------------------------------------------------------
 
-
-
-
-
-
-
-
-
-
+# Plot of stationary variables --------------------------------------------
 
 variables %>% 
   mutate(Date = factors[,1]) %>% 
   gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + 
   geom_line() + 
-  facet_wrap(~variable, nrow=2, scales = "free") +
+  facet_wrap(~variable, nrow=1, scales = "free") +
   th
-
-
-
-adf.test(variables$FFR)
-adf.test(variables$INFL)
-
-
-
-
-
-
-
-
-library(Hmisc)
-
-xtable(corstarsl(variables[,-1]))
-
-
-cor(variables[,-1])
-
 
 
 
@@ -277,22 +244,9 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
 
 
 
-
-
-
-
-
-
-
-
-
 # IRF ---------------------------------------------------------------------
 
-
-
-#m <- VAR(pp[,-1], p = 13)
-
-data <- irf(m, n.ahead = 13, cumulative = F)
+data <- irf(m, n.ahead = 49, cumulative = F)
 variables <- data$irf %>% names
 
 ir <- lapply(1:length(variables), function(e){
@@ -320,34 +274,13 @@ ggplot(ir, aes(x = t, y = Value, group = Variable))  +
   geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
   geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_x_continuous("Lags", limits = c(0,12), breaks = seq(0, 12, 1)) +
+  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 4)) +
   #scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(0,0.1,0.2,0.3,0.4,0.5)) +
   facet_grid(Variable ~ impulse, switch = "y", scales = "free") +
   labs(title=expression(paste(bold("Figure 4.1 "), " Impulse Response Functions")), 
        subtitle="Note: 95% Confidence intervals by bootstrap, 100 runs", 
        caption="Source: FRED + Egne beregninger") +
   th
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -392,11 +325,61 @@ stargazer(FAVAR, summary.stat = c("n", "mean", "sd", "min", "max"))
 
 res <- apply(FAVAR_S[,-1], FUN = function(x) auto.arima(x)$arma[6], MARGIN = 2)
 
-library(xtable)
 xtable(res)
-res
 
 tibble(res, names(res))
+
+
+
+
+
+
+
+
+
+
+
+# PCA reconstruction ------------------------------------------------------
+
+obj <- irf(m, impulse = "FFR", n.ahead = 48)
+eigen <- FAVAR_PCA$rotation
+
+val <- obj[1]$irf$FFR[,-c(1,2)] %*% t(eigen) %>% 
+  cbind(.,obj[1]$irf$FFR[,c(1,2)]) %>% 
+  as.data.frame %>% 
+  mutate(N = 1:49) %>% 
+  gather(variable, value, -N)
+
+upp <- obj[2]$Lower$FFR[,-c(1,2)] %*% t(eigen) %>% 
+  cbind(.,obj[2]$Lower$FFR[,c(1,2)]) %>% 
+  as.data.frame %>% 
+  dplyr::select(-starts_with("X")) %>% 
+  mutate(N = 1:49) %>% 
+  gather(variable, value, -N)
+
+low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>% 
+  cbind(.,obj[3]$Upper$FFR[,c(1,2)]) %>% 
+  as.data.frame %>% 
+  dplyr::select(-starts_with("X")) %>% 
+  mutate(N = 1:49) %>% 
+  gather(variable, value, -N)
+
+val %>% 
+  full_join(.,upp, by=c("N", "variable")) %>% 
+  full_join(., low, by=c("N", "variable")) %>%
+  filter(variable %in% c(TOP, "INFL", "FFR")) %>% 
+  gather(type, value, -variable,-N) %>% ggplot(aes(N, value, linetype=type)) + 
+  geom_line() +
+  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 6)) +
+  scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
+  geom_hline(aes(yintercept = 0), color="grey") + 
+  facet_wrap(~variable, scales = "free", nrow=2) + 
+  th  + theme(axis.title.y = element_blank(), legend.position = "none")
+
+
+
+
+
 
 
 

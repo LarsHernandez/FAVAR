@@ -74,13 +74,17 @@ FAVAR_T <- FAVAR_S %>%
 FAVAR_T <- FAVAR_T[-c(1,2),]
 
 
-aa <- cor(cbind(FAVAR_T[,-1], FFR[-c(1,2),-1], INFL[-c(1,2),-1]))
+#aa <- cor(cbind(FAVAR_T[,-1], FFR[-c(1,2),-1], INFL[-c(1,2),-1]))
 
+
+IOrder <- FAVAR_S %>% dplyr::select(-Date) %>% apply(MARGIN = 2, FUN = function(x) auto.arima(x)$arma[6])
+
+  
 
 
 # PCA Factors -------------------------------------------------------------
 
-FAVAR_PCA <- prcomp(FAVAR_T[,-1], rank. = 5)
+FAVAR_PCA <- prcomp(FAVAR_T[,-1], rank. = 8)
 #summary(FAVAR_PCA)
 
 #factors <- cbind(FAVAR_T[c("Date")], FAVAR_PCA$x)
@@ -124,8 +128,8 @@ INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>%
 
 
 
-variables <- tibble(FFR = FFR$Value[-c(1,2)],
-                    INFL =INFL$Value[-c(1,2)])
+variables <- tibble(INFL =INFL$Value[-c(1,2)], 
+                    FFR = FFR$Value[-c(1,2)])
 
 variables <- cbind(FAVAR_T[c("Date")], variables, FAVAR_PCA$x)
 
@@ -181,11 +185,11 @@ text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
 text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
 text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
 
-lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
 lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
 
 
 
@@ -193,7 +197,7 @@ lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04), pmat = a), lwd = 0.2, lty = 2,
 # Plot of stationary variables --------------------------------------------
 
 variables %>% 
-  mutate(Date = factors[,1]) %>% 
+  mutate(Date = FAVAR_T[,1]) %>% 
   gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + 
   geom_line() + 
@@ -218,12 +222,12 @@ Yellen    <- variables %>% filter(Date > "2014-01-01", Date < "2018-02-01") %>% 
 
 
 
-df <- rbind(tibble(IRF = Martin$irf$FFR,    Lower = Martin$Lower$FFR,    Upper = Martin$Upper$FFR,    N = c(0:24), type = "Martin\n1951 - 1970"),
-            tibble(IRF = Burns$irf$FFR,     Lower = Burns$Lower$FFR,     Upper = Burns$Upper$FFR,     N = c(0:24), type = "Burns\n1970 - 1978"),
-            tibble(IRF = Volcker$irf$FFR,   Lower = Volcker$Lower$FFR,   Upper = Volcker$Upper$FFR,   N = c(0:24), type = "Volcker\n1979 - 1987"),
-            tibble(IRF = Greenspan$irf$FFR, Lower = Greenspan$Lower$FFR, Upper = Greenspan$Upper$FFR, N = c(0:24), type = "Greenspan\n1987 - 2006"),
-            tibble(IRF = Bernanke$irf$FFR,  Lower = Bernanke$Lower$FFR,  Upper = Bernanke$Upper$FFR,  N = c(0:24), type = "Bernanke\n2006 - 2014"),
-            tibble(IRF = Yellen$irf$FFR,    Lower = Yellen$Lower$FFR,    Upper = Yellen$Upper$FFR,    N = c(0:24), type = "Yellen\n2014 - 2018")) %>% 
+df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],    Upper = Martin$Upper$FFR[,1],    N = c(0:24), type = "Martin\n1951 - 1970"),
+            tibble(IRF = Burns$irf$FFR[,1],     Lower = Burns$Lower$FFR[,1],     Upper = Burns$Upper$FFR[,1],     N = c(0:24), type = "Burns\n1970 - 1978"),
+            tibble(IRF = Volcker$irf$FFR[,1],   Lower = Volcker$Lower$FFR[,1],   Upper = Volcker$Upper$FFR[,1],   N = c(0:24), type = "Volcker\n1979 - 1987"),
+            tibble(IRF = Greenspan$irf$FFR[,1], Lower = Greenspan$Lower$FFR[,1], Upper = Greenspan$Upper$FFR[,1], N = c(0:24), type = "Greenspan\n1987 - 2006"),
+            tibble(IRF = Bernanke$irf$FFR[,1],  Lower = Bernanke$Lower$FFR[,1],  Upper = Bernanke$Upper$FFR[,1],  N = c(0:24), type = "Bernanke\n2006 - 2014"),
+            tibble(IRF = Yellen$irf$FFR[,1],    Lower = Yellen$Lower$FFR[,1],    Upper = Yellen$Upper$FFR[,1],    N = c(0:24), type = "Yellen\n2014 - 2018")) %>% 
   gather(variable, value, -type, -N)
 
 df$type <- factor(df$type, levels = c("Martin\n1951 - 1970", "Burns\n1970 - 1978", "Volcker\n1979 - 1987","Greenspan\n1987 - 2006","Bernanke\n2006 - 2014","Yellen\n2014 - 2018"))
@@ -233,6 +237,7 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
   facet_wrap(~type) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
+  scale_y_continuous(limits=c(-0.14,0.24)) +
   labs(title = expression(paste(bold("Figur 4.7  "), "Strukturelle skift 1960 - 2018 (INFL, PROD, FFR)")), 
        color = "Procent", y = "", x = "Lags", caption = "Kilde: FRED + Egne beregninger", linetype = "") +
   th
@@ -241,7 +246,36 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
 
 
 
+# Hvor mange faktorere ----------------------------------------------------
 
+p0 <- variables %>% dplyr::select(INFL, FFR)                                         %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p1 <- variables %>% dplyr::select(INFL, FFR, PC1)                                    %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                          %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+
+df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "Ingen faktorere"),
+            tibble(IRF = p1$irf$FFR[,1],    Lower = p1$Lower$FFR[,1],    Upper = p1$Upper$FFR[,1],    N = c(0:48), type = "1 Faktorere"),
+            tibble(IRF = p3$irf$FFR[,1],    Lower = p3$Lower$FFR[,1],    Upper = p3$Upper$FFR[,1],    N = c(0:48), type = "3 Faktorere"),
+            tibble(IRF = p5$irf$FFR[,1],    Lower = p5$Lower$FFR[,1],    Upper = p5$Upper$FFR[,1],    N = c(0:48), type = "5 Faktorere"),
+            tibble(IRF = p8$irf$FFR[,1],    Lower = p8$Lower$FFR[,1],    Upper = p8$Upper$FFR[,1],    N = c(0:48), type = "8 Faktorere")) %>% 
+  gather(variable, value, -type, -N)
+
+df %>% ggplot(aes(N, value, linetype = variable)) +
+  geom_line(size = 0.4)+
+  facet_wrap(~type, nrow=1) +
+  scale_linetype_manual(values = c("solid", "dashed", "dashed")) + 
+  scale_color_manual(values = c("black", "grey", "grey")) + 
+  geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
+  scale_y_continuous(limits=c(-0.05,0.1)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y=element_blank(), legend.position = "none")
+
+
+
+geom_line(size = 0.4) +
+  geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
+  geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
 
 
 # IRF ---------------------------------------------------------------------
@@ -367,9 +401,14 @@ low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>%
 val %>% 
   full_join(.,upp, by=c("N", "variable")) %>% 
   full_join(., low, by=c("N", "variable")) %>%
-  filter(variable %in% c(TOP, "INFL", "FFR")) %>% 
-  gather(type, value, -variable,-N) %>% ggplot(aes(N, value, linetype=type)) + 
+  filter(variable %in% c(TOP)) %>% 
+  gather(type, value, -variable,-N) %>% 
+  #group_by(type, variable) %>% 
+  mutate(variable = factor(variable, levels=TOP)) %>% 
+  #mutate(value = cumsum(value)) %>% 
+  ggplot(aes(N, value, linetype=type)) + 
   geom_line() +
+  geom_blank(aes(value=-value)) + 
   scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 6)) +
   scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
   geom_hline(aes(yintercept = 0), color="grey") + 

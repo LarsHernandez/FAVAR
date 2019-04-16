@@ -20,7 +20,7 @@ library(vars)
 key <- "WB3WH-RUprDSyH2xaLbu"
 
 th <- theme(plot.title        = element_text(size = 20),
-            plot.background   = element_rect(fill = "grey98", color = NA),
+            plot.background   = element_rect(fill = "white", color = NA),
             panel.background  = element_rect(fill = NA,       color = NA), 
             legend.background = element_rect(fill = NA,       color = NA),
             legend.key        = element_rect(fill = NA,       color = NA),
@@ -33,7 +33,7 @@ th <- theme(plot.title        = element_text(size = 20),
             strip.text        = element_text(face  = "bold"),
             axis.text         = element_text(color = "black"),
             axis.ticks        = element_line(color = "black"),
-            plot.margin       = unit(c(1, 0.5, 0.5, 0.5), "cm"))
+            plot.margin       = unit(c(0.2, 0.1, 0.2, 0.1), "cm"))
 
 # Data --------------------------------------------------------------------
 
@@ -248,13 +248,13 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
 
 # Hvor mange faktorere ----------------------------------------------------
 
-p0 <- variables %>% dplyr::select(INFL, FFR)                                         %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p1 <- variables %>% dplyr::select(INFL, FFR, PC1)                                    %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                          %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13, type = "none") %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p0 <- variables %>% dplyr::select(INFL, FFR)                                         %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p1 <- variables %>% dplyr::select(INFL, FFR, PC1)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
 
-df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "Ingen faktorere"),
+df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "0 faktorere"),
             tibble(IRF = p1$irf$FFR[,1],    Lower = p1$Lower$FFR[,1],    Upper = p1$Upper$FFR[,1],    N = c(0:48), type = "1 Faktorere"),
             tibble(IRF = p3$irf$FFR[,1],    Lower = p3$Lower$FFR[,1],    Upper = p3$Upper$FFR[,1],    N = c(0:48), type = "3 Faktorere"),
             tibble(IRF = p5$irf$FFR[,1],    Lower = p5$Lower$FFR[,1],    Upper = p5$Upper$FFR[,1],    N = c(0:48), type = "5 Faktorere"),
@@ -264,18 +264,11 @@ df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper =
 df %>% ggplot(aes(N, value, linetype = variable)) +
   geom_line(size = 0.4)+
   facet_wrap(~type, nrow=1) +
-  scale_linetype_manual(values = c("solid", "dashed", "dashed")) + 
-  scale_color_manual(values = c("black", "grey", "grey")) + 
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_y_continuous(limits=c(-0.05,0.1)) +
+  scale_y_continuous(limits=c(-0.03,0.08)) +
   labs(x = "Lags", linetype = "") +
   th + theme(axis.title.y=element_blank(), legend.position = "none")
-
-
-
-geom_line(size = 0.4) +
-  geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
-  geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
 
 
 # IRF ---------------------------------------------------------------------
@@ -342,7 +335,8 @@ colnames(ttt) <- c("Date",
 )
 
 ttt %>% gather(variable, value, -Date) %>% 
-  ggplot(aes(Date, value)) + geom_line() + 
+  ggplot(aes(Date, value)) + 
+  geom_line(size=0.4) + 
   facet_wrap(~variable, scale="free", nrow = 2) + 
   th  + theme(axis.title=element_blank())
 
@@ -401,22 +395,27 @@ low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>%
 val %>% 
   full_join(.,upp, by=c("N", "variable")) %>% 
   full_join(., low, by=c("N", "variable")) %>%
-  filter(variable %in% c(TOP)) %>% 
+  filter(variable %in% unique(variable)[1:32]) %>% 
   gather(type, value, -variable,-N) %>% 
   #group_by(type, variable) %>% 
-  mutate(variable = factor(variable, levels=TOP)) %>% 
+  #mutate(variable = factor(variable, levels=TOP)) %>% 
   #mutate(value = cumsum(value)) %>% 
   ggplot(aes(N, value, linetype=type)) + 
-  geom_line() +
+  geom_line(size=0.4) +
   geom_blank(aes(value=-value)) + 
   scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 6)) +
   scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
   geom_hline(aes(yintercept = 0), color="grey") + 
-  facet_wrap(~variable, scales = "free", nrow=2) + 
+  facet_wrap(~variable, scales = "free", nrow=8) + 
   th  + theme(axis.title.y = element_blank(), legend.position = "none")
 
 
 
+vars <- FAVAR_T %>% dplyr::select(IPMANSICS,CUSR0000SAC,T10YFFM,GS5,UEMP15OV,HOUST,M2REAL,M2SL)
+fact <- FAVAR_PCA$x
+aa <- round(cor(vars,fact),2)
+
+xtable(aa)
 
 
 

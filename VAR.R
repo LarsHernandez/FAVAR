@@ -154,7 +154,41 @@ df <- tibble(R1 = as.vector(irf(VAR(pp[c(1,2,3,4)][,c(2:4)], p = 13), impulse = 
              R4 = as.vector(irf(VAR(pp[c(1,3,4,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
              R5 = as.vector(irf(VAR(pp[c(1,4,2,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
              R6 = as.vector(irf(VAR(pp[c(1,4,3,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$irf$FFR),
-             N  = c(0:48))
+             N  = c(0:48),
+             inte = "base") %>% gather(variable, Change, -N, -inte)
+df1 <- tibble(R1 = as.vector(irf(VAR(pp[c(1,2,3,4)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Upper$FFR),
+              R2 = as.vector(irf(VAR(pp[c(1,2,4,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Upper$FFR),
+              R3 = as.vector(irf(VAR(pp[c(1,3,2,4)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Upper$FFR),
+              R4 = as.vector(irf(VAR(pp[c(1,3,4,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Upper$FFR),
+              R5 = as.vector(irf(VAR(pp[c(1,4,2,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Upper$FFR),
+              R6 = as.vector(irf(VAR(pp[c(1,4,3,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Upper$FFR),
+              N  = c(0:48),
+              inte = "upper") %>% gather(variable, Change, -N, -inte)
+df2 <- tibble(R1 = as.vector(irf(VAR(pp[c(1,2,3,4)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Lower$FFR),
+              R2 = as.vector(irf(VAR(pp[c(1,2,4,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Lower$FFR),
+              R3 = as.vector(irf(VAR(pp[c(1,3,2,4)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Lower$FFR),
+              R4 = as.vector(irf(VAR(pp[c(1,3,4,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Lower$FFR),
+              R5 = as.vector(irf(VAR(pp[c(1,4,2,3)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Lower$FFR),
+              R6 = as.vector(irf(VAR(pp[c(1,4,3,2)][,c(2:4)], p = 13), impulse = "FFR", response = "INFL", n.ahead = 48)$Lower$FFR),
+              N  = c(0:48),
+              inte = "Lower") %>% gather(variable, Change, -N, -inte)
+
+rbind(df,df1,df2) %>% 
+  group_by(variable, inte) %>% 
+  mutate(Accumulated = cumsum(Change)) %>% 
+  gather(type, value, -N, -variable, -inte) %>% 
+  ggplot(aes(N, value, color = variable, linetype=inte)) + 
+  facet_wrap(~type, scales = "free")+
+  geom_line(size = 0.4) + 
+  geom_hline(aes(yintercept = 0), size = 0.4, alpha = 0.5) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_color_manual(values = c("black","black","black","black","black","black","black")) +
+  scale_x_continuous(breaks = seq(0,48, by = 6), limits = c(0, 48)) +
+  labs(linetype = "Order", y = "", x = "Lags") +
+  th + theme(axis.title.y=element_blank(), legend.position = "none")
+
+
+
 
 df %>% gather(variable, Change, -N) %>% 
   group_by(variable) %>% 
@@ -176,21 +210,21 @@ df %>% gather(variable, Change, -N) %>%
 
 
 
-Martin    <- pp %>% filter(Date > "1951-01-01", Date < "1970-02-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 2) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Burns     <- pp %>% filter(Date > "1970-02-01", Date < "1979-08-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 2) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Volcker   <- pp %>% filter(Date > "1979-08-01", Date < "1987-08-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 2) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Greenspan <- pp %>% filter(Date > "1987-08-01", Date < "2006-01-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 2) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Bernanke  <- pp %>% filter(Date > "2006-01-01", Date < "2014-01-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 2) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Yellen    <- pp %>% filter(Date > "2014-01-01", Date < "2018-02-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 2) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+Martin    <- pp %>% filter(Date > "1951-01-01", Date < "1970-02-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 5) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+Burns     <- pp %>% filter(Date > "1970-02-01", Date < "1979-08-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 5) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+Volcker   <- pp %>% filter(Date > "1979-08-01", Date < "1987-08-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 5) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+Greenspan <- pp %>% filter(Date > "1987-08-01", Date < "2006-01-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 5) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+Bernanke  <- pp %>% filter(Date > "2006-01-01", Date < "2014-01-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 5) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+Yellen    <- pp %>% filter(Date > "2014-01-01", Date < "2018-02-01") %>% dplyr::select(-Date, -type) %>% VAR(p = 5) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
 
 
 
-df <- rbind(tibble(IRF = Martin$irf$FFR,    Lower = Martin$Lower$FFR,    Upper = Martin$Upper$FFR,    N = c(0:24), type = "Martin\n1951 - 1970"),
-            tibble(IRF = Burns$irf$FFR,     Lower = Burns$Lower$FFR,     Upper = Burns$Upper$FFR,     N = c(0:24), type = "Burns\n1970 - 1978"),
-            tibble(IRF = Volcker$irf$FFR,   Lower = Volcker$Lower$FFR,   Upper = Volcker$Upper$FFR,   N = c(0:24), type = "Volcker\n1979 - 1987"),
-            tibble(IRF = Greenspan$irf$FFR, Lower = Greenspan$Lower$FFR, Upper = Greenspan$Upper$FFR, N = c(0:24), type = "Greenspan\n1987 - 2006"),
-            tibble(IRF = Bernanke$irf$FFR,  Lower = Bernanke$Lower$FFR,  Upper = Bernanke$Upper$FFR,  N = c(0:24), type = "Bernanke\n2006 - 2014"),
-            tibble(IRF = Yellen$irf$FFR,    Lower = Yellen$Lower$FFR,    Upper = Yellen$Upper$FFR,    N = c(0:24), type = "Yellen\n2014 - 2018")) %>% 
+df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],    Upper = Martin$Upper$FFR[,1],    N = c(0:24), type = "Martin\n1951 - 1970"),
+            tibble(IRF = Burns$irf$FFR[,1],     Lower = Burns$Lower$FFR[,1],     Upper = Burns$Upper$FFR[,1],     N = c(0:24), type = "Burns\n1970 - 1978"),
+            tibble(IRF = Volcker$irf$FFR[,1],   Lower = Volcker$Lower$FFR[,1],   Upper = Volcker$Upper$FFR[,1],   N = c(0:24), type = "Volcker\n1979 - 1987"),
+            tibble(IRF = Greenspan$irf$FFR[,1], Lower = Greenspan$Lower$FFR[,1], Upper = Greenspan$Upper$FFR[,1], N = c(0:24), type = "Greenspan\n1987 - 2006"),
+            tibble(IRF = Bernanke$irf$FFR[,1],  Lower = Bernanke$Lower$FFR[,1],  Upper = Bernanke$Upper$FFR[,1],  N = c(0:24), type = "Bernanke\n2006 - 2014"),
+            tibble(IRF = Yellen$irf$FFR[,1],    Lower = Yellen$Lower$FFR[,1],    Upper = Yellen$Upper$FFR[,1],    N = c(0:24), type = "Yellen\n2014 - 2018")) %>% 
   gather(variable, value, -type, -N)
 
 df$type <- factor(df$type, levels = c("Martin\n1951 - 1970", "Burns\n1970 - 1978", "Volcker\n1979 - 1987","Greenspan\n1987 - 2006","Bernanke\n2006 - 2014","Yellen\n2014 - 2018"))
@@ -201,8 +235,7 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
   scale_y_continuous(breaks = c(0.10,0.05,0,-0.05,-0.10), limits = c(-0.19, 0.19)) +
-  #labs(title = expression(paste(bold("Figur 4.7  "), "Strukturelle skift 1960 - 2018 (INFL, PROD, FFR)")), 
-   #    color = "Procent", y = "", x = "Lags", caption = "Kilde: FRED + Egne beregninger", linetype = "") +
+  scale_x_continuous("Lags", limits = c(0,24), breaks = seq(0, 24, 4)) +
   coord_cartesian(ylim = c(-0.12, 0.12)) +
   labs(y="", x="Lags", linetype = "") +
   th + theme(axis.title.y=element_blank(), legend.position = "none")
@@ -279,3 +312,60 @@ RMSE(prod.arima$pred, actual$PROD)
 
 
 cor(FAVAR_T$IPMANSICS, FAVAR_PCA$x[,1])
+
+
+
+
+
+
+
+# Persp plot ---------------------------------------------------------------
+
+n.columns <- 598 # 718m - 72m  Time difference of 45.32564 mins
+irff <- matrix(nrow = 44, ncol = n.columns)
+
+start_time <- Sys.time()
+for (i in 1:n.columns) {
+  result <- pp %>% 
+    filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(120 + i)) %>% 
+    dplyr::select(-Date) %>% VAR(p = 2)
+  irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 43)$irf$FFR
+}
+end_time <- Sys.time()
+end_time - start_time
+
+x <- c(1:44)
+y <- seq(1970, 2019, length.out = 598)
+z <- irff
+
+# Create a function interpolating colors in the range of specified colors
+jet.colors <- colorRampPalette(brewer.pal(9,"YlGnBu"))
+
+# Generate the desired number of colors from this palette
+nbcol <- 100
+color <- jet.colors(nbcol)
+
+# Compute the z-value at the facet centres
+zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)])/4
+
+# Recode facet z-values into color indices
+facetcol <- cut(zfacet, nbcol)
+
+a <- persp(x, y, z, col = color[facetcol],
+           zlim = c(-0.10, 0.15),
+           xlab = "Months", ylab = "", zlab = "%",
+           theta = 40, phi = 30, expand = 0.45,
+           ticktype = "detailed", lwd = 0.1)
+
+text(trans3d(0, 1970.0, 0.145, a), "Burns",     col = "black")
+text(trans3d(0, 1979.8, 0.145, a), "Volcker",   col = "black")
+text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
+text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
+text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
+
+lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+

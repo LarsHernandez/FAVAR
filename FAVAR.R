@@ -16,6 +16,7 @@ library(forecast)
 library(xtable)
 library(RColorBrewer)
 library(vars)
+library(lubridate)
 
 key <- "WB3WH-RUprDSyH2xaLbu"
 
@@ -146,15 +147,20 @@ m
 
 # Persp plot ---------------------------------------------------------------
 
-n.columns <- 598 # 718m - 72m
+n.columns <- 598 # 718m - 72m  Time difference of 45.32564 mins
 irff <- matrix(nrow = 44, ncol = n.columns)
 
+start_time <- Sys.time()
 for (i in 1:n.columns) {
   result <- variables %>% 
     filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(120 + i)) %>% 
-    dplyr::select(-Date) %>% VAR(p = 2)
+    dplyr::select(-Date) %>% VAR(p = 13)
   irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 43)$irf$FFR
 }
+end_time <- Sys.time()
+end_time - start_time
+
+
 
 x <- c(1:44)
 y <- seq(1970, 2019, length.out = 598)
@@ -200,9 +206,12 @@ variables %>%
   mutate(Date = FAVAR_T[,1]) %>% 
   gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + 
-  geom_line() + 
-  facet_wrap(~variable, nrow=1, scales = "free") +
-  th
+  geom_line(size=0.4) + 
+  facet_wrap(~variable, nrow=7, scales = "free") +
+  th + theme(axis.title = element_blank())
+
+
+
 
 
 
@@ -238,6 +247,7 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
   scale_y_continuous(limits=c(-0.14,0.24)) +
+  scale_x_continuous("Lags", limits = c(0,24), breaks = seq(0, 24, 4)) +
   labs(title = expression(paste(bold("Figur 4.7  "), "Strukturelle skift 1960 - 2018 (INFL, PROD, FFR)")), 
        color = "Procent", y = "", x = "Lags", caption = "Kilde: FRED + Egne beregninger", linetype = "") +
   th
@@ -254,7 +264,7 @@ p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                     
 p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
 p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
 
-df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "0 faktorere"),
+df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "0 Faktorere"),
             tibble(IRF = p1$irf$FFR[,1],    Lower = p1$Lower$FFR[,1],    Upper = p1$Upper$FFR[,1],    N = c(0:48), type = "1 Faktorere"),
             tibble(IRF = p3$irf$FFR[,1],    Lower = p3$Lower$FFR[,1],    Upper = p3$Upper$FFR[,1],    N = c(0:48), type = "3 Faktorere"),
             tibble(IRF = p5$irf$FFR[,1],    Lower = p5$Lower$FFR[,1],    Upper = p5$Upper$FFR[,1],    N = c(0:48), type = "5 Faktorere"),
@@ -262,13 +272,15 @@ df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper =
   gather(variable, value, -type, -N)
 
 df %>% ggplot(aes(N, value, linetype = variable)) +
-  geom_line(size = 0.4)+
-  facet_wrap(~type, nrow=1) +
+  geom_line(size = 0.4) +
+  facet_wrap(~type, nrow = 1) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_y_continuous(limits=c(-0.03,0.08)) +
+  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 8)) +
+  scale_y_continuous(limits = c(-0.03,0.08)) +
   labs(x = "Lags", linetype = "") +
-  th + theme(axis.title.y=element_blank(), legend.position = "none")
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
+
 
 
 # IRF ---------------------------------------------------------------------
@@ -318,7 +330,7 @@ ggplot(ir, aes(x = t, y = Value, group = Variable))  +
 TOP <- c("IPMANSICS","CUSR0000SAC","T10YFFM","GS5","UEMP15OV","HOUST","M2REAL","M2SL")
 
 ttt <- Quandl(paste0("FRED/", TOP), api_key = key) %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01")
+  filter(Date >= "1959-03-01", Date < "2019-01-01")
 
 colnames(ttt)[-1] <- str_sub(colnames(ttt)[-1], 1, str_length(colnames(ttt)[-1]) - 8)
 colnames(ttt)[-1] <- str_sub(colnames(ttt)[-1], 6)
@@ -341,21 +353,13 @@ ttt %>% gather(variable, value, -Date) %>%
   th  + theme(axis.title=element_blank())
 
 
-
-
-
-
 # Summary statistics ------------------------------------------------------
 
-
 stargazer(FAVAR, summary.stat = c("n", "mean", "sd", "min", "max"))
-
-
 res <- apply(FAVAR_S[,-1], FUN = function(x) auto.arima(x)$arma[6], MARGIN = 2)
-
 xtable(res)
 
-tibble(res, names(res))
+
 
 
 
@@ -395,27 +399,46 @@ low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>%
 val %>% 
   full_join(.,upp, by=c("N", "variable")) %>% 
   full_join(., low, by=c("N", "variable")) %>%
-  filter(variable %in% unique(variable)[1:32]) %>% 
+  filter(variable %in% TOP) %>% 
   gather(type, value, -variable,-N) %>% 
-  #group_by(type, variable) %>% 
-  #mutate(variable = factor(variable, levels=TOP)) %>% 
-  #mutate(value = cumsum(value)) %>% 
-  ggplot(aes(N, value, linetype=type)) + 
+  group_by(type, variable) %>% 
+  mutate(value2 = case_when(variable %in% c("M2SL","M2REAL")~ cumsum(value),
+                            variable %in% c("IPMANSICS","CUSR0000SAC","T10YFFM","GS5","UEMP15OV","HOUST")~value)) %>% 
+  ungroup() %>% 
+  mutate(variable = factor(variable, levels=TOP)) %>% 
+  ggplot(aes(N, value2, linetype=type)) + 
   geom_line(size=0.4) +
-  geom_blank(aes(value=-value)) + 
+  geom_blank(aes(value2=-value2)) + 
   scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 6)) +
   scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
   geom_hline(aes(yintercept = 0), color="grey") + 
-  facet_wrap(~variable, scales = "free", nrow=8) + 
+  facet_wrap(~variable, scales = "free", nrow=2) + 
   th  + theme(axis.title.y = element_blank(), legend.position = "none")
 
 
 
+# Correlation matrix ------------------------------------------------------
+
 vars <- FAVAR_T %>% dplyr::select(IPMANSICS,CUSR0000SAC,T10YFFM,GS5,UEMP15OV,HOUST,M2REAL,M2SL)
 fact <- FAVAR_PCA$x
-aa <- round(cor(vars,fact),2)
 
-xtable(aa)
+cor(vars,fact) %>% xtable()
+
+
+
+
+
+# FEVD - VARIABLES --------------------------------------------------------
+
+decomp <- fevd(m, n.ahead = 60)
+decomp$INFL[60,-c(1,2)] %*% t(eigen) %>% 
+  t() %>% 
+  as.tibble %>% 
+  mutate(name = rownames(eigen)) %>% 
+  arrange(desc(V1)) %>% 
+  xtable(digits = 4)
+
+
 
 
 

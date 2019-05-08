@@ -316,8 +316,16 @@ cor(FAVAR_T$IPMANSICS, FAVAR_PCA$x[,1])
 
 
 
+# Granger -----------------------------------------------------------------
 
+grangertest(x = pp$INFL, y = pp$PROD, order = 13)
+grangertest(x = pp$INFL, y = pp$FFR, order = 13)
 
+grangertest(x = pp$PROD, y = pp$INFL, order = 13)
+grangertest(x = pp$PROD, y = pp$FFR, order = 13)
+
+grangertest(x = pp$FFR, y = pp$INFL, order = 13)
+grangertest(x = pp$FFR, y = pp$PROD, order = 13)
 
 # Persp plot ---------------------------------------------------------------
 

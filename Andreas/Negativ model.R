@@ -6,32 +6,36 @@ library(tseries)
 library(vars)
 
 
-# Data 1959-2019--------------------------------------------------------------------
+# Data 2000-2016 --------------------------------------------------------------------
 
 FFR <- Quandl("FRED/FEDFUNDS") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
+  arrange(Date)
+
+SHA <- Quandl("SHADOWS/US") %>% 
+  filter(Date >= "2000-01-01", Date < "2016-01-01") %>% 
   arrange(Date)
 
 CPI <- Quandl("FRED/CPIAUCSL") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
   arrange(Date)
 
 PROD <- Quandl("FRED/INDPRO") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
   arrange(Date)
 
-Aktie <- read_delim("//student.aau.dk/Users/aklitg15/Desktop/aktiepriser_eikon - grundmodel.csv", ";", escape_double = FALSE, locale = locale(decimal_mark = ","), trim_ws = TRUE)
+Aktie <- read_delim("//student.aau.dk/Users/aklitg15/Desktop/aktiepriser_eikon - negativmodel.csv", ";", escape_double = FALSE, locale = locale(decimal_mark = ","), trim_ws = TRUE)
 
 COM <- Quandl("FRED/PPIIDC") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
   arrange(Date)
 
 UNE <- Quandl("FRED/UNRATE") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
   arrange(Date)
 
 BOND <- Quandl("FED/SVENY", collapse = "m") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
   arrange(Date)
 
 # Variabel  --------------------------------------------------------------
@@ -44,7 +48,7 @@ COM <- COM$Value
 UNE <- UNE$Value
 SPREAD <- BOND$SVENY05-BOND$SVENY02
 SPREAD2 <- c(rnorm(28, mean = 0.4,sd = 0.1),SPREAD)
-  
+
 # Stationæritet-test  ----------------------------------------------------
 
 adf.test(SPREAD2)

@@ -91,7 +91,6 @@ V4 <- VAR(Data4, p=13)
 irf4 <- irf(V4, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
 plot(irf4)
 
-
 # TEST af rækkefølge --------------------------------------------------------------------
 
 irf1 <-  irf(VAR(Data4[,c(1,2,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)

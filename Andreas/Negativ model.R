@@ -41,115 +41,147 @@ BOND <- Quandl("FED/SVENY", collapse = "m") %>%
 # Variabel  --------------------------------------------------------------
 
 FFR <- FFR$Value
+SHA <- SHA$`Policy Rate`
 CPI <- CPI$Value
 PROD <- PROD$Value
 DOW <- Aktie$`US DOW JONES INDUSTRIALS SHARE PRICE INDEX (EP) NADJ`
 COM <- COM$Value
 UNE <- UNE$Value
 SPREAD <- BOND$SVENY05-BOND$SVENY02
-SPREAD2 <- c(rnorm(28, mean = 0.4,sd = 0.1),SPREAD)
 
-# Stationæritet-test  ----------------------------------------------------
+# Stationæritet-test  ---------------------------------------------------- PROBLEMER MED STATIONÆRITET!!
 
-adf.test(SPREAD2)
+adf.test(dSPREAD)
 
 dFFR <- diff(FFR)
+dSHA <- diff(SHA)
 dCPI <- diff(log(CPI))*100
 dPROD <- diff(log(PROD))*100
 dDOW <- diff(log(DOW))*100
 dCOM <- diff(log(COM))*100
 dUNE <- diff(UNE)
+dSPREAD <- diff(SPREAD)
 
 # Datasæt til model-------------------------------------------------------
 
 Data <-  cbind(dCPI,dPROD,dFFR) #Grundmodel
-Data1 <- cbind(dCPI,dCOM,dPROD,dFFR) #Grundmodel + commodity
-Data2 <- cbind(dCPI,dDOW,dPROD,dFFR) #Grundmodel + aktie (D&J)
-Data3 <- cbind(dCPI,dUNE,dPROD,dFFR) #Grundmodel + Unemployment
-Data4 <- cbind(dCPI,SPREAD2,dPROD,dFFR) #Grundmodel + Spread
+Data1 <- cbind(dCPI,dPROD,dSHA) #Negativ model
+Data2 <- cbind(dCPI,dCOM,dPROD,dSHA) #Negativ model + commodity
+Data3 <- cbind(dCPI,dDOW,dPROD,dSHA) #Negativ model + aktie (D&J)
+Data4 <- cbind(dCPI,dUNE,dPROD,dSHA) #Negativ model + Unemployment
+Data5 <- cbind(dCPI,dSPREAD,dPROD,dSHA) #Negativ model + Spread
 
 # Modeller  --------------------------------------------------------------
 
 VARselect(Data, lag.max = 24)
-V <- VAR(Data, p=13)
-irf <- irf(V, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+V <- VAR(Data, p=3)
+irf <- irf(V, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 plot(irf)
 
-VARselect(Data1, lag.max = 24)
-V1 <- VAR(Data1, p=13)
-irf1 <- irf(V1, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+ VARselect(Data1, lag.max = 24)
+V1 <- VAR(Data1, p=3)
+irf1 <- irf(V1, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 plot(irf1)
 
 VARselect(Data2, lag.max = 24)
-V2 <- VAR(Data2, p=13)
-irf2 <- irf(V2, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+V2 <- VAR(Data2, p=3)
+irf2 <- irf(V2, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 plot(irf2)
 
 VARselect(Data3, lag.max = 24)
-V3 <- VAR(Data3, p=13)
-irf3 <- irf(V3, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+V3 <- VAR(Data3, p=3)
+irf3 <- irf(V3, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 plot(irf3)
 
 VARselect(Data4, lag.max = 24)
-V4 <- VAR(Data4, p=13)
-irf4 <- irf(V4, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+V4 <- VAR(Data4, p=3)
+irf4 <- irf(V4, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 plot(irf4)
 
+VARselect(Data5, lag.max = 24)
+V5 <- VAR(Data5, p=3)
+irf5 <- irf(V5, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+plot(irf5)
 
-# TEST af rækkefølge --------------------------------------------------------------------
+# TEST af rækkefølge 3 Variable--------------------------------------------------------------------
 
-irf1 <-  irf(VAR(Data4[,c(1,2,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf2 <-  irf(VAR(Data4[,c(1,2,4,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf3 <-  irf(VAR(Data4[,c(1,3,4,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf4 <-  irf(VAR(Data4[,c(1,3,2,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf5 <-  irf(VAR(Data4[,c(1,4,2,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf6 <-  irf(VAR(Data4[,c(1,4,3,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf1 <-  irf(VAR(Data1[,c(1,2,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf2 <-  irf(VAR(Data1[,c(1,3,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf3 <-  irf(VAR(Data1[,c(2,1,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf4 <-  irf(VAR(Data1[,c(2,3,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf5 <-  irf(VAR(Data1[,c(3,1,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf6 <-  irf(VAR(Data1[,c(3,2,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 
-irf7 <-  irf(VAR(Data4[,c(2,1,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf8 <-  irf(VAR(Data4[,c(2,1,4,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf9 <-  irf(VAR(Data4[,c(2,3,4,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf10 <- irf(VAR(Data4[,c(2,3,1,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf11 <- irf(VAR(Data4[,c(2,4,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf12 <- irf(VAR(Data4[,c(2,4,1,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+b <- cbind(irf1$irf$dSHA,
+           irf2$irf$dSHA,
+           irf3$irf$dSHA,
+           irf4$irf$dSHA,
+           irf5$irf$dSHA,
+           irf6$irf$dSHA)
 
-irf13 <- irf(VAR(Data4[,c(3,1,2,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf14 <- irf(VAR(Data4[,c(3,1,4,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf15 <- irf(VAR(Data4[,c(3,2,1,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf16 <- irf(VAR(Data4[,c(3,2,4,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf17 <- irf(VAR(Data4[,c(3,4,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf18 <- irf(VAR(Data4[,c(3,4,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+b %>% as_tibble %>% mutate(n=c(1:25)) %>% gather(variable, value, -n) %>% ggplot(aes(n, value, group=variable)) + geom_line()
 
-irf19 <- irf(VAR(Data4[,c(4,1,2,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf20 <- irf(VAR(Data4[,c(4,1,3,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf21 <- irf(VAR(Data4[,c(4,2,1,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf22 <- irf(VAR(Data4[,c(4,2,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf23 <- irf(VAR(Data4[,c(4,3,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf24 <- irf(VAR(Data4[,c(4,3,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+# TEST af rækkefølge 4 Variable--------------------------------------------------------------------
 
-a <- cbind(irf1$irf$dFFR,
-           irf2$irf$dFFR,
-           irf3$irf$dFFR,
-           irf4$irf$dFFR,
-           irf5$irf$dFFR,
-           irf6$irf$dFFR,
-           irf7$irf$dFFR,
-           irf8$irf$dFFR,
-           irf9$irf$dFFR,
-           irf10$irf$dFFR,
-           irf11$irf$dFFR,
-           irf12$irf$dFFR,
-           irf13$irf$dFFR,
-           irf14$irf$dFFR,
-           irf15$irf$dFFR,
-           irf16$irf$dFFR,
-           irf17$irf$dFFR,
-           irf18$irf$dFFR,
-           irf19$irf$dFFR,
-           irf20$irf$dFFR,
-           irf21$irf$dFFR,
-           irf22$irf$dFFR,
-           irf23$irf$dFFR,
-           irf24$irf$dFFR)
+irf1 <-  irf(VAR(Data2[,c(1,2,3,4)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf2 <-  irf(VAR(Data2[,c(1,2,4,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf3 <-  irf(VAR(Data2[,c(1,3,4,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf4 <-  irf(VAR(Data2[,c(1,3,2,4)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf5 <-  irf(VAR(Data2[,c(1,4,2,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf6 <-  irf(VAR(Data2[,c(1,4,3,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
 
-a %>% as_tibble %>% mutate(n=c(1:49)) %>% gather(variable, value, -n) %>% ggplot(aes(n, value, group=variable)) + geom_line()
+irf7 <-  irf(VAR(Data2[,c(2,1,3,4)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf8 <-  irf(VAR(Data2[,c(2,1,4,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf9 <-  irf(VAR(Data2[,c(2,3,4,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf10 <- irf(VAR(Data2[,c(2,3,1,4)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf11 <- irf(VAR(Data2[,c(2,4,3,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf12 <- irf(VAR(Data2[,c(2,4,1,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+
+irf13 <- irf(VAR(Data2[,c(3,1,2,4)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf14 <- irf(VAR(Data2[,c(3,1,4,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf15 <- irf(VAR(Data2[,c(3,2,1,4)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf16 <- irf(VAR(Data2[,c(3,2,4,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf17 <- irf(VAR(Data2[,c(3,4,1,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf18 <- irf(VAR(Data2[,c(3,4,2,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+
+irf19 <- irf(VAR(Data2[,c(4,1,2,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf20 <- irf(VAR(Data2[,c(4,1,3,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf21 <- irf(VAR(Data2[,c(4,2,1,3)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf22 <- irf(VAR(Data2[,c(4,2,3,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf23 <- irf(VAR(Data2[,c(4,3,1,2)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+irf24 <- irf(VAR(Data2[,c(4,3,2,1)], p=3), impulse = "dSHA", response = "dCPI", ortho = T, cumulative = T, n.ahead = 24)
+
+a <- cbind(irf1$irf$dSHA,
+           irf2$irf$dSHA,
+           irf3$irf$dSHA,
+           irf4$irf$dSHA,
+           irf5$irf$dSHA,
+           irf6$irf$dSHA,
+           irf7$irf$dSHA,
+           irf8$irf$dSHA,
+           irf9$irf$dSHA,
+           irf10$irf$dSHA,
+           irf11$irf$dSHA,
+           irf12$irf$dSHA,
+           irf13$irf$dSHA,
+           irf14$irf$dSHA,
+           irf15$irf$dSHA,
+           irf16$irf$dSHA,
+           irf17$irf$dSHA,
+           irf18$irf$dSHA,
+           irf19$irf$dSHA,
+           irf20$irf$dSHA,
+           irf21$irf$dSHA,
+           irf22$irf$dSHA,
+           irf23$irf$dSHA,
+           irf24$irf$dSHA)
+
+a %>% as_tibble %>% mutate(n=c(1:25)) %>% gather(variable, value, -n) %>% ggplot(aes(n, value, group=variable)) + geom_line()
+
+# GGPLOT ------------------------------------------------------------------
+
+FFR2 <- FFR %>% mutate(type="FFR", n=seq(from=as.Date("2000-01-01"), to =as.Date("2015-11-01"), by="months"))
+SHA2 <- SHA %>% mutate(type="SHA", n=seq(from=as.Date("2000-01-01"), to =as.Date("2015-11-01"), by="months")) %>% rename("Value"="Policy Rate")
+ny <- rbind(FFR2,SHA2)
+ny %>% ggplot(aes(n, Value, linetype=type)) + geom_line() + geom_hline(aes(yintercept=0),linetype="dashed")
 

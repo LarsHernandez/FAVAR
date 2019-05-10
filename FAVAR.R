@@ -94,6 +94,31 @@ FAVAR_PCA <- prcomp(FAVAR_T[,-1], rank. = 8)
 
 
 
+IC1 <- ICfactors(FAVAR_T[,-1], type = 1, rmax = 15)
+IC2 <- ICfactors(FAVAR_T[,-1], type = 2, rmax = 15)
+IC3 <- ICfactors(FAVAR_T[,-1], type = 3, rmax = 15)
+
+# BaiNgIC <- cbind(IC1$IC, IC2$IC, IC3$IC)
+# rownames(BaiNgIC) <- 1:nrow(BaiNgIC)
+# colnames(BaiNgIC) <- c("Information Criterion 1", "Information Criterion 2", "Information Criterion 3")
+# stargazer(BaiNgIC)
+
+star <- tibble(IC1 = IC1$r_star,
+               IC2 = IC2$r_star,
+               IC3 = IC3$r_star) %>% 
+  gather(variable, value)
+        
+tibble(IC1 = IC1$IC,
+       IC2 = IC2$IC,
+       IC3 = IC3$IC,
+       n   = c(1:15)) %>% gather(variable, value, -n) %>% 
+  ggplot(aes(n,value)) + 
+  geom_vline(data=star, aes(xintercept=value), linetype="dashed", color="grey") + 
+  geom_point() + 
+  scale_x_continuous(breaks=c(1:15)) +
+  facet_wrap(~variable) + 
+  th + theme(axis.title = element_blank())
+
 
 
 # Factor loadings ---------------------------------------------------------

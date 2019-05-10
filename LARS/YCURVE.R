@@ -5,8 +5,8 @@ library(plotly)
 library(lubridate)
 library(gganimate)
 
-ZERO <- Quandl("FED/SVENY")
 
+ZERO <- Quandl("FED/SVENY")
 
 ZERO_S <- ZERO %>% 
   filter(Date > "2000-01-01") %>% 
@@ -15,8 +15,6 @@ ZERO_S <- ZERO %>%
 ZERO_M <- ZERO_S %>% 
   dplyr::select(-Date) %>% 
   as.matrix()
-
-
 
 #plot_ly(z = ~ ZERO_plot, colors = "Greys") %>% add_surface()
 #par(mar=c(2, 2, 2, 2))
@@ -47,7 +45,7 @@ ZERO_S %>% filter(Date == "2019-04-01") %>%
 
 
 
-library(gganimate)
+
 
 
 

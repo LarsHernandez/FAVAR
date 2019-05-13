@@ -51,7 +51,7 @@ SPREAD <- BOND$SVENY05-BOND$SVENY02
 
 # Stationæritet-test  ---------------------------------------------------- PROBLEMER MED STATIONÆRITET!!
 
-adf.test(PROD)
+adf.test(dPROD)
 
 dFFR <- diff(FFR)
 dSHA <- diff(SHA)

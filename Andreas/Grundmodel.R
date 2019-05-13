@@ -93,33 +93,33 @@ plot(irf4)
 
 # TEST af rækkefølge --------------------------------------------------------------------
 
-irf1 <-  irf(VAR(Data4[,c(1,2,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf2 <-  irf(VAR(Data4[,c(1,2,4,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf3 <-  irf(VAR(Data4[,c(1,3,4,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf4 <-  irf(VAR(Data4[,c(1,3,2,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf5 <-  irf(VAR(Data4[,c(1,4,2,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf6 <-  irf(VAR(Data4[,c(1,4,3,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf1 <-  irf(VAR(Data4[,c(1,2,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf2 <-  irf(VAR(Data4[,c(1,2,4,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf3 <-  irf(VAR(Data4[,c(1,3,4,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf4 <-  irf(VAR(Data4[,c(1,3,2,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf5 <-  irf(VAR(Data4[,c(1,4,2,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf6 <-  irf(VAR(Data4[,c(1,4,3,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 
-irf7 <-  irf(VAR(Data4[,c(2,1,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf8 <-  irf(VAR(Data4[,c(2,1,4,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf9 <-  irf(VAR(Data4[,c(2,3,4,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf10 <- irf(VAR(Data4[,c(2,3,1,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf11 <- irf(VAR(Data4[,c(2,4,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf12 <- irf(VAR(Data4[,c(2,4,1,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf7 <-  irf(VAR(Data4[,c(2,1,3,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf8 <-  irf(VAR(Data4[,c(2,1,4,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf9 <-  irf(VAR(Data4[,c(2,3,4,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf10 <- irf(VAR(Data4[,c(2,3,1,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf11 <- irf(VAR(Data4[,c(2,4,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf12 <- irf(VAR(Data4[,c(2,4,1,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 
-irf13 <- irf(VAR(Data4[,c(3,1,2,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf14 <- irf(VAR(Data4[,c(3,1,4,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf15 <- irf(VAR(Data4[,c(3,2,1,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf16 <- irf(VAR(Data4[,c(3,2,4,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf17 <- irf(VAR(Data4[,c(3,4,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf18 <- irf(VAR(Data4[,c(3,4,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf13 <- irf(VAR(Data4[,c(3,1,2,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf14 <- irf(VAR(Data4[,c(3,1,4,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf15 <- irf(VAR(Data4[,c(3,2,1,4)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf16 <- irf(VAR(Data4[,c(3,2,4,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf17 <- irf(VAR(Data4[,c(3,4,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf18 <- irf(VAR(Data4[,c(3,4,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 
-irf19 <- irf(VAR(Data4[,c(4,1,2,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf20 <- irf(VAR(Data4[,c(4,1,3,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf21 <- irf(VAR(Data4[,c(4,2,1,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf22 <- irf(VAR(Data4[,c(4,2,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf23 <- irf(VAR(Data4[,c(4,3,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
-irf24 <- irf(VAR(Data4[,c(4,3,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf19 <- irf(VAR(Data4[,c(4,1,2,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf20 <- irf(VAR(Data4[,c(4,1,3,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf21 <- irf(VAR(Data4[,c(4,2,1,3)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf22 <- irf(VAR(Data4[,c(4,2,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf23 <- irf(VAR(Data4[,c(4,3,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
+irf24 <- irf(VAR(Data4[,c(4,3,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 
 a <- cbind(irf1$irf$dFFR,
            irf2$irf$dFFR,
@@ -146,5 +146,5 @@ a <- cbind(irf1$irf$dFFR,
            irf23$irf$dFFR,
            irf24$irf$dFFR)
 
-a %>% as_tibble %>% mutate(n=c(1:49)) %>% gather(variable, value, -n) %>% ggplot(aes(n, value, group=variable)) + geom_line()
-
+a %>% as_tibble %>% mutate(n=c(1:49)) %>% gather(variable, value, -n) %>% ggplot(aes(n, value, group=variable, color=variable)) + geom_line()
+a

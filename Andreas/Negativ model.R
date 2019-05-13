@@ -207,4 +207,3 @@ samligning %>% gather(variable, value, -type, -n) %>%
   geom_line(size=0.6) + 
   geom_hline(aes(yintercept=0), linetype="dotted") + 
   scale_linetype_manual(values = c("solid", "dashed", "dashed"))
-

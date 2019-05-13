@@ -1,0 +1,1065 @@
+---
+title: "FAVAR_Rasmus"
+output: 
+  html_document: 
+    theme: spacelab
+    toc: yes
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(scales)
+library(nowcasting)
+library(missMDA)
+library(stargazer)
+library(Quandl)
+library(fredr)
+library(tseries)
+library(gridExtra)
+library(vars)
+library(forecast)
+
+fredr_set_key("0ed565f681fd4eed054d20207c3962f3")
+Quandl.api_key("NBrW5T3wJVcx5QJ4tfY7")
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+## 1. Data, loading two months earlier to allow for second difference.
+## 2. Attaching transformation code vector
+current <- read_csv("current.csv", col_types = cols(sasdate = col_date(format = "%m/%d/%Y"))) %>%
+  filter(sasdate >= as.Date("1989-11-01"), sasdate < as.Date("2019-01-01")) ## 1.
+
+DateVec <- current[,1]
+current <- current[,-1]
+Transform <- read_csv("current.csv") %>% .[1,] %>% .[,-1]
+current <- rbind(Transform, current) ## 2.
+
+
+## 1. Raw data for loop
+## 2. Removing first 2 observations to allow for differences - defining the y dataset
+## 3. Number of variables + Date-vec
+## 4. Number of observations + the transformation code
+
+RawData <- current                
+x = RawData                       ## 1.
+y = RawData[-c(2:3),]             ## 2.
+y = y[FALSE,]                     
+n <- ncol(x)                      ## 3.
+t <- as.integer(nrow(x))          ## 4.
+
+
+# Stationarity ------------------------------------------------------------
+for (i in 1:n) {
+  
+  if (x[1,i] == 1) {       ## no Transformation/already stationary series
+    y[4:t,i] <- x[4:t,i]
+  }
+  else  if (x[1,i] == 2) { ## First difference
+    y[4:t,i] <- x[4:t,i]-x[3:(t-1),i]
+  }
+  else if (x[1,i] == 3) {  ## Second difference
+    y[4:t,i] <- x[4:t,i]-2*x[3:(t-1),i]+x[2:(t-2)]
+  }
+  else if (x[1,i] == 4) {  ## Ln
+    y[4:t,i] <- log(x[4:t,i])
+  }
+  else if (x[1,i] == 5) {  ## First difference of ln
+    y[4:t,i] <- log(x[4:t,i])-log(x[3:(t-1),i])
+  }
+  else if (x[1,i] == 6) {  ## Second difference of ln
+    y[4:t,i] <- log(x[4:t,i])-2*log(x[3:(t-1),i])+log(x[2:(t-2),i])
+  }
+  else if (x[1,i] == 7) {  ## First difference of percentage change
+    y[4:t,i] <- (x[4:t,i]-x[3:(t-1),i])/x[3:(t-1),i]-(x[3:(t-1),i]-x[2:(t-2),i])/x[2:(t-2),i]
+  } 
+}
+
+rm(x, Transform) ## Clearing uneeded data
+y = y[4:t,]      ## Removing the first 2 months because of differencing leading to NA's
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+##########################
+## Determining outliers ##
+##########################
+
+## Outliers: abs(x-median)>10*interquartile_ranget
+## 1. Determining the median of each series
+## 2. Increasing the dimensions of the median set, by repeating 1,i entries t times
+## 3. Determining the quantiles
+## 4. Sample Interquantile range X_0.75-X_0.25 
+## 5. Increasing dimensions of interquantile range, by repeating 1,i entries t times
+## 6. Critical value for each entry
+## 7. Defining the binary outlier dataset 1=outlier
+
+Median_y  <- y[FALSE,]
+qnt       <- y[FALSE,]
+IQR_y     <- y[FALSE,]
+Z         <- y[FALSE,]
+outlier_y <- y[FALSE,]
+for (i in 1:n) {
+  Median_y[1,i] <- median(as.matrix(y[1:t, i]), na.rm = TRUE)                 ## 1.
+  Median_y[1:t,i] <- rep(Median_y[1,i], each = t)                             ## 2.
+  qnt[1:2,i] <- quantile(as.matrix(y[,i]), probs=c(0.25, 0.75), na.rm = TRUE) ## 3.
+  IQR_y[1,i] = 10*(qnt[2,i]-qnt[1,i])                                         ## 4.
+  IQR_y[1:t,i] = rep(IQR_y[1,i], each = t)                                    ## 5.
+  Z[1:t,i]=abs(y[1:t,i]-Median_y[1:t,i])                                      ## 6. 
+  outlier_y[1:t,i] = Z[1:t,i]>IQR_y[1:t,i]                                    ## 7.
+}
+rm(Median_y, qnt, Z, IQR_y)                                                  
+
+
+
+#######################
+## Removing outliers ##
+#######################
+
+y_no = y
+outlier_y[is.na(outlier_y)] <- 0
+for (i in 1:n) {
+  for (k in 1:t) {
+    if (outlier_y[k,i] == 1){
+      y_no[k,i]  <- NA ## Replacing all values of y considered an outlier by NA
+    }
+  }
+}
+rm(outlier_y)
+
+## EM - Algorithm for missing data ## 
+y_no <- as.data.frame(y_no)
+EM_up = imputePCA(y_no, maxiter = 150)
+yt = EM_up$completeObs
+yt = as.data.frame(yt)
+colnames(yt) = colnames(y_no)
+
+
+
+############################
+## Demean and standardize ##
+############################
+
+yt_z = yt[FALSE,]
+for (i in 1:ncol(yt)){
+  yt_z[1:nrow(yt),i] <- (yt[,i]-mean(yt[,i]))/sd(yt[,i])
+}
+## These lines checks if the mean and variance of each column indeed is
+## 0 and 1 respectively
+# colMeans(yt_z)   
+# apply(yt_z, 2, sd) 
+## yt_z is hence the Z-standardized dataset.
+```
+
+
+
+```{r}
+#########
+## PCA ##
+#########
+yt_z1  <- as.matrix(yt_z)
+cov_yt <- t(yt_z1) %*% yt_z1 / t ## Defining the 128x128 covariance matrix
+
+## Eigen decomposition, identical to SVD here (symmetric square matrix)
+eig               <- eigen(cov_yt) 
+eig_val           <- as.data.frame(eig[1]$values) ## Eigenvalue
+colnames(eig_val) <- "Eigenvalue"
+rownames(eig_val) <- 1:nrow(eig_val)
+
+eig_vec           <- as.data.frame(eig[2]$vectors) ## Eigenvector
+colnames(eig_vec) <- 1:ncol(eig_vec)
+rownames(eig_val) <- 1:nrow(eig_vec)
+
+Factor_loadings   <- sqrt(ncol(yt_z)) * eig_vec
+Factor_loadings   <- as.data.frame(Factor_loadings)
+Factor_components <- as.matrix(yt_z) %*% as.matrix(Factor_loadings/ncol(yt_z))
+Factor_components <- as.data.frame(Factor_components)
+
+Fhat              <- Factor_components[,1:7] ## Using the first 7 factors as indicated by the IC2
+Fhat_d            <- cbind(DateVec[3:nrow(DateVec),1], Fhat) ## Reattaching Datevector
+
+```
+
+```{r fig.width=12}
+fit.pca <- prcomp(yt_z, rank. = 7, scale. = T)
+summary(fit.pca)
+
+Fhat2 <- fit.pca$x %>% as_tibble()
+colnames(Fhat2) <- c("1", "2", "3","4", "5", "6", "7")
+
+rbind(Fhat %>% mutate(type="Rasmus",n=c(1:348)), Fhat2 %>% mutate(type="prcomp",n=c(1:348))) %>% 
+  gather(variable, value, -n, -type) %>% 
+  ggplot(aes(n, value, color=type)) + geom_line() + facet_wrap(type~variable, scales="free", nrow=2) + labs(title="Factors")
+
+eig_rasmus <- eig_vec[,c(1:7)]
+eig_prcomp <- fit.pca$rotation
+colnames(eig_prcomp) <- c("1", "2", "3","4", "5", "6","7")
+
+rbind(eig_prcomp %>% as_tibble %>% mutate(n=c(1:128), type="prcomp"),
+      eig_rasmus %>% as_tibble %>% mutate(n=c(1:128), type="Rasmus")) %>% 
+  gather(variable, value, -type, -n) %>% 
+  ggplot(aes(n, value, color=type)) + 
+  geom_line() + 
+  facet_wrap(~variable, nrow=2) +
+  labs(title="Eigen vectors")
+```
+
+
+## Scree
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+var_fac = eig_val/sum(eig_val)
+# sum(var_fac[1:7,1])*100 ## Total variation explained by 7 factors
+colnames(var_fac) <- "var"
+no_fac <- 1:nrow(eig_val)
+
+ggplot() + 
+  geom_point(aes(x=no_fac, y = var_fac$var), shape=21, fill= "#014d64", size = 2.5) +
+  labs(title = "Scree plot - 128 factors",
+       caption = "Rasmus M. Jensen" ) +
+  scale_y_continuous(expand = c(0, 0),
+                     limits=c(0,0.16),
+                     breaks=seq(0, 0.16, 0.02), 
+                     name = "Variance explained",
+                     labels = scales::percent_format()) +
+  scale_x_continuous(expand = c(0, 0),
+                     limits = c(0, 130),
+                     breaks = seq(0,128, 16),
+                     name = "Factor")
+
+```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+IC1 <- ICfactors(yt_z1, rmax = 14, 1)
+IC2 <- ICfactors(yt_z1, rmax = 14, 2)
+IC3 <- ICfactors(yt_z1, rmax = 14, 3)
+
+factor <- as.matrix(1:nrow(as.matrix(IC1$IC)), nrow = 1, ncol = 14)
+
+ggplot() + 
+  geom_point(aes(x=factor, y = IC1$IC), shape=21, size = 2.5) +
+  geom_point(aes(x=which.min(IC1$IC), y = min(IC1$IC)), shape=21, fill="#014d64", size = 3) +
+  labs(title = "Number of factors",
+       subtitle = "Bai & Ng information criterion 1",
+       caption = "Rasmus M. Jensen",
+       x = "Factor",
+       y = "Information Criterion") +
+  scale_x_continuous(breaks=seq(0,nrow(as.matrix(IC1$IC)),1))
+
+
+ggplot() + 
+  geom_point(aes(x=factor, y = IC2$IC), shape=21, size = 2.5) +
+  geom_point(aes(x=which.min(IC2$IC), y = min(IC2$IC)), shape=21, fill="#014d64", size = 3) +
+  labs(title = "Number of factors",
+       subtitle = "Bai & Ng information criterion 2",
+       caption = "Rasmus M. Jensen",
+       x = "Factor",
+       y = "Information Criterion") +
+  scale_x_continuous(breaks=seq(0,nrow(as.matrix(IC2$IC)),1))
+
+
+ggplot() + 
+  geom_point(aes(x=factor, y = IC3$IC), shape=21, size = 2.5) +
+  geom_point(aes(x=which.min(IC3$IC), y = min(IC3$IC)), shape=21, fill="#014d64", size = 3) +
+  labs(title = "Number of factors",
+       subtitle = "Bai & Ng information criterion 3",
+       caption = "Rasmus M. Jensen",
+       x = "Factor",
+       y = "Information Criterion") +
+  scale_x_continuous(breaks=seq(0,nrow(as.matrix(IC3$IC)),1))
+```
+
+
+
+```{r}
+BaiNgIC = cbind(IC1$IC, IC2$IC, IC3$IC)
+rownames(BaiNgIC) = 1:nrow(BaiNgIC)
+colnames(BaiNgIC) <- c("Information Criterion 1", "Information Criterion 2", "Information Criterion 3")
+#stargazer(BaiNgIC)
+```
+
+
+
+
+
+
+```{r}
+########################
+##  Data for forecast ##
+########################
+## FAVAR ##
+SHADOWRATE <- Quandl("SHADOWS/US", ##(Wu-Xia 2016)
+                     order = "asc",
+                     start_date = "1990-01-01",
+                     force_irregular = TRUE)
+
+FEDFUNDS <- fredr("FEDFUNDS",      ##(FRED 2019)
+                  frequency = "m",
+                  observation_start = as.Date("1989-12-01"),
+                  observation_end = as.Date("2018-12-01"))
+
+FEDFUNDSFUTURES <- Quandl("CHRIS/CME_FF6",
+                          order = "asc",
+                          start_date = "1989-11-30",
+                          end_date = "2018-11-30",
+                          collapse = "monthly",
+                          force_irregular = TRUE) ##(CME Group, 2019)
+
+IP <- fredr("INDPRO",  ## Industrial Productivity Index 2012=100
+            frequency = "m",
+            observation_start = as.Date("1989-12-01"),
+            observation_end = as.Date("2018-12-01"))
+
+IP <- xts(IP$value, order.by = IP$date) %>% log %>% diff %>% na.omit
+
+
+CPI <- fredr("CPIAUCSL", ## Consumer price index 1982-1984=100
+            frequency = "m",
+            observation_start = as.Date("1989-12-01"),
+            observation_end = as.Date("2018-12-01"))
+
+CPI <- xts(CPI$value, order.by = CPI$date) %>% log %>% diff %>% na.omit
+
+
+FEDFUNDS <- FEDFUNDS[,-2] 
+Datevec <- FEDFUNDS[,1]
+
+FEDFUNDSFUTURES = FEDFUNDSFUTURES[c(1, 7)]
+FEDFUNDSFUTURES <- add_row(FEDFUNDSFUTURES, .after = 6)
+FEDFUNDSFUTURES[7,1] <- Datevec[7,1] 
+FEDFUNDSFUTURES[7,2] <- (FEDFUNDSFUTURES[6,2] + FEDFUNDSFUTURES[8,2]) / 2
+FEDFUNDSFUTURES <- as.xts(FEDFUNDSFUTURES$Settle, order.by = Datevec$date)
+ ## Interpolating the missing observation and constructing dataframe.
+FedFunds <- as.xts(FEDFUNDS$value, order.by = FEDFUNDS$date)
+
+ggplot(FEDFUNDS) + 
+  geom_line(aes(date,value)) +
+  labs(title = "Effective Federal Funds rate")
+
+ggplot(SHADOWRATE) + 
+  geom_line(aes(Date, SHADOWRATE$"Policy Rate")) +
+  labs(title = "Shadow Federal Funds rate")
+
+ggplot() + 
+  geom_line(aes(index(FEDFUNDSFUTURES), FEDFUNDSFUTURES)) +
+  labs(title = "Federal Funds Futures")
+
+ggplot() + 
+  geom_line(aes(index(CPI),CPI)) + 
+  labs(title = "Consumer Price Index")
+
+ggplot() + 
+  geom_line(aes(index(IP),IP)) + 
+  labs(title = "Industrial Production")
+```
+
+
+
+
+
+```{r}
+## Loop replacing FED fund observations at the effective lower bound
+## with the estimated shadow rate
+CONSrate <- FEDFUNDS[,2]
+for (i in 1:nrow(SHADOWRATE)){
+  if (SHADOWRATE[i,2] != FEDFUNDS[i,2]){
+    CONSrate[i,1] <- SHADOWRATE[i,2]
+  }
+} 
+
+CONSrate[1,1] <- FEDFUNDS$value[1]
+
+CONSrate <- as.xts(CONSrate, order.by = Datevec$date)
+
+# Stationarity testing:
+adf.test(CONSrate, k = 1)   # non-stationary p-value>0.05
+#adf.test(FEDFUNDSFUTURES, k = 1) # non-stationary p-value>0.05
+
+
+# Hence differencing:
+DFEDFUNDSFUTURES <- diff(FEDFUNDSFUTURES)
+DFEDFUNDSFUTURES <- na.omit(DFEDFUNDSFUTURES)
+adf.test(DFEDFUNDSFUTURES, k = 1)
+DFunds = diff(CONSrate)
+DFunds = na.omit(DFunds)
+adf.test(DFunds, k = 1) 
+# P-value lower than 0.05 hence accept null stationary at significance<1% 
+
+ggplot() + 
+  geom_line(aes(x=index(DFunds), y = DFunds), colour = "#014d64") + 
+  geom_hline(yintercept = 0, colour = "#00887d", lty = 2, size = 1.1) +
+  labs(title = expression(Delta*"Policy Rate"), 
+       caption = "Rasmus M. Jensen",
+       y = expression(Delta*"Policy Rate"), 
+       x = "Year") +
+  scale_y_continuous()
+
+ggplot() + 
+  geom_line(aes(x=index(DFEDFUNDSFUTURES), y = DFEDFUNDSFUTURES), colour = "#014d64") + 
+  geom_hline(yintercept = 0, colour = "#00887d", lty = 2, size = 1.1) +
+  labs(title = expression(Delta*"Fed Funds Futures prices"), 
+       caption = "Rasmus M. Jensen",
+       y = expression(Delta*"Futures price"), 
+       x = "Year") +
+  scale_y_continuous()
+
+Datevec <- Datevec[2:nrow(Datevec),]
+Factors <- xts(Fhat, order.by = Datevec$date)
+colnames(Factors) <- 1:7
+Fed.Funds <- xts(DFunds, order.by = Datevec$date)
+colnames(Fed.Funds) <- "Diff.Funds"
+colnames(DFEDFUNDSFUTURES) <- "Diff.Fed.Funds.Futures"
+rm(FEDFUNDS, SHADOWRATE, DateVec, Datevec, Fhat, i, DFunds, Fhat_d)
+
+Data.Frame <- merge.xts(Fed.Funds, DFEDFUNDSFUTURES, Factors)
+write.csv(Data.Frame,'Data.Frame.csv')
+colnames(Data.Frame) <- c("Diff.Funds", "Diff.Fed.Funds.Futures", "F1", "F2", "F3", "F4", "F5", "F6", "F7")
+
+```
+
+
+
+
+```{r fig.width=12}
+Data.Frame %>% 
+  as.tibble %>% 
+  mutate(date = index(Data.Frame)) %>% 
+  gather(variable, value ,-date, -Diff.Fed.Funds.Futures, -Diff.Funds) %>% 
+  ggplot(aes(date, value)) + 
+  geom_line() + 
+  facet_wrap(~variable, nrow=2)
+```
+
+
+```{r}
+###########
+## FAVAR ##
+###########
+# Using AIC and BIC to determine the optimal lag and factor structure
+## Model 1 ##
+## AIC ##
+max_lag = 5
+max_fac = 7
+AkaikeVAR1 = matrix(0, nrow = max_lag, ncol = max_fac+1)
+row.names(AkaikeVAR1) <- c("VAR(1)", "VAR(2)", "VAR(3)", "VAR(4)", "VAR(5)")
+colnames(AkaikeVAR1) <- c("FA(0)", "FA(1)", "FA(2)", "FA(3)", "FA(4)", "FA(5)",
+                         "FA(6)", "FA(7)")
+for (i in 1:max_lag){
+  for (z in 0:max_fac){
+    AkaikeVAR1[i,(z+1)] <-  AIC(VAR(Data.Frame[, 1:(2+z)], type = "none", p=i))
+  }
+}
+
+print(paste("Model 1: Akaike Information Criterion suggests a:", 
+            colnames(AkaikeVAR1)[which(AkaikeVAR1==AkaikeVAR1[which.min(AkaikeVAR1)], 
+                                      arr.ind=TRUE)[2]],
+            rownames(AkaikeVAR1)[which(AkaikeVAR1==AkaikeVAR1[which.min(AkaikeVAR1)], 
+                                      arr.ind=TRUE)[1]], sep=" "))
+
+## BIC ##
+BICVAR1 = matrix(0, nrow = max_lag, ncol = max_fac+1)
+row.names(BICVAR1) <- c("VAR(1)", "VAR(2)", "VAR(3)", "VAR(4)", "VAR(5)")
+colnames(BICVAR1) <- c("FA(0)", "FA(1)", "FA(2)", "FA(3)", "FA(4)", "FA(5)",
+                      "FA(6)", "FA(7)")
+for (i in 1:max_lag){
+  for (z in 0:max_fac){
+    BICVAR1[i,(z+1)] <-  BIC(VAR(Data.Frame[, 1:(2+z)], type = "none", p=i))
+  }
+}
+print(paste("Model 1: Bayesian Information Criterion suggests a:", 
+            colnames(BICVAR1)[which(BICVAR1==BICVAR1[which.min(BICVAR1)], 
+                                   arr.ind=TRUE)[2]],
+            rownames(BICVAR1)[which(BICVAR1==BICVAR1[which.min(BICVAR1)], 
+                                   arr.ind=TRUE)[1]], sep=" "))
+# stargazer(AkaikeVAR1, summary = FALSE)
+# stargazer(BICVAR1, summary = FALSE)
+
+## Model 2 ##
+
+VAR.Data = merge.xts(IP, CPI, Data.Frame$Diff.Funds) ##VAR Dataframce
+FAVAR.dat = merge.xts(VAR.Data, Data.Frame[,3:ncol(Data.Frame)])
+
+AkaikeVAR2 = matrix(0, nrow = max_lag, ncol = max_fac+1)
+row.names(AkaikeVAR2) <- c("VAR(1)", "VAR(2)", "VAR(3)", "VAR(4)", "VAR(5)")
+colnames(AkaikeVAR2) <- c("FA(0)", "FA(1)", "FA(2)", "FA(3)", "FA(4)", "FA(5)",
+                         "FA(6)", "FA(7)")
+for (i in 1:max_lag){
+  for (z in 0:max_fac){
+    AkaikeVAR2[i,(z+1)] <-  AIC(VAR(FAVAR.dat[, 1:(3+z)], type = "none", p=i))
+  }
+}
+
+print(paste("Model 2: Akaike Information Criterion suggests a:", 
+            colnames(AkaikeVAR2)[which(AkaikeVAR2==AkaikeVAR2[which.min(AkaikeVAR2)], 
+                                      arr.ind=TRUE)[2]],
+            rownames(AkaikeVAR2)[which(AkaikeVAR2==AkaikeVAR2[which.min(AkaikeVAR2)], 
+                                      arr.ind=TRUE)[1]], sep=" "))
+
+## BIC ##
+BICVAR2 = matrix(0, nrow = max_lag, ncol = max_fac+1)
+row.names(BICVAR2) <- c("VAR(1)", "VAR(2)", "VAR(3)", "VAR(4)", "VAR(5)")
+colnames(BICVAR2) <- c("FA(0)", "FA(1)", "FA(2)", "FA(3)", "FA(4)", "FA(5)",
+                      "FA(6)", "FA(7)")
+for (i in 1:max_lag){
+  for (z in 0:max_fac){
+    BICVAR2[i,(z+1)] <-  BIC(VAR(FAVAR.dat[, 1:(3+z)], type = "none", p=i))
+  }
+}
+print(paste("Model 2: Bayesian Information Criterion suggests a:", 
+            colnames(BICVAR2)[which(BICVAR2==BICVAR2[which.min(BICVAR2)], 
+                                   arr.ind=TRUE)[2]],
+            rownames(BICVAR2)[which(BICVAR2==BICVAR2[which.min(BICVAR2)], 
+                                   arr.ind=TRUE)[1]], sep=" "))
+# stargazer(AkaikeVAR2,BICVAR2, summary = FALSE)
+
+rm(AkaikeVAR1, AkaikeVAR2, BICVAR1, BICVAR2)
+
+FAVAR <- VAR(Data.Frame, type = "none", p = 1)
+
+## Data Summary Table ## 
+summarydat = merge.xts(Data.Frame[,2], FAVAR.dat[,1:3])
+
+# stargazer(summarydat, summary = TRUE) ## Data summary
+adf.test(IP, k = 1) ## P-value for fata summary
+adf.test(CPI, k = 1) ## P-value for data summary
+```
+
+```{r}
+VARselect(Data.Frame, lag.max = 24)$selection
+```
+
+
+
+
+
+
+
+
+```{r fig.height=8, fig.width=12}
+factors.actual <- Data.Frame %>% 
+  as.tibble %>% 
+  mutate(date = index(Data.Frame), 
+         type = "Actual")
+
+factors.fitted <- tibble(F1 = FAVAR$varresult$F1$fitted.values,
+                         F2 = FAVAR$varresult$F2$fitted.values,
+                         F3 = FAVAR$varresult$F3$fitted.values,
+                         F4 = FAVAR$varresult$F4$fitted.values,
+                         F5 = FAVAR$varresult$F5$fitted.values,
+                         F6 = FAVAR$varresult$F6$fitted.values,
+                         F7 = FAVAR$varresult$F7$fitted.values,
+                         Diff.Funds = FAVAR$varresult$Diff.Funds$fitted.values,
+                         Diff.Fed.Funds.Futures = FAVAR$varresult$Diff.Fed.Funds.Futures$fitted.values,
+                         date = index(Data.Frame)[-1],
+                         type = "Fitted")
+
+rbind(factors.actual, factors.fitted) %>% 
+  gather(variable, value ,-date, -type) %>% 
+  ggplot(aes(date, value, color=type)) + 
+  geom_line() + 
+  facet_wrap(~variable, nrow=3) + 
+  labs(title = expression(Delta*"Policy Rate"), 
+       subtitle = "Actual vs. Fitted",
+       color="Series",
+       y = expression(Delta*"Policy Rate"))
+
+
+factors.fitted.res <- tibble(F1 = FAVAR$varresult$F1$residuals,
+                             F2 = FAVAR$varresult$F2$residuals,
+                             F3 = FAVAR$varresult$F3$residuals,
+                             F4 = FAVAR$varresult$F4$residuals,
+                             F5 = FAVAR$varresult$F5$residuals,
+                             F6 = FAVAR$varresult$F6$residuals,
+                             F7 = FAVAR$varresult$F7$residuals,
+                             Diff.Funds = FAVAR$varresult$Diff.Funds$residuals,
+                         Diff.Fed.Funds.Futures = FAVAR$varresult$Diff.Fed.Funds.Futures$residuals,
+                             date = index(Data.Frame)[-1])
+
+factors.fitted.res %>% 
+  gather(variable, value ,-date) %>% 
+  ggplot(aes(date, value)) + 
+  geom_line(color="grey") + 
+  geom_hline(aes(yintercept=0)) +
+  facet_wrap(~variable, nrow=3) +
+  labs(title = "Residuals",
+       caption = "Rasmus M. Jensen",
+       y = "Residuals",
+       x = "Year")
+```
+
+
+
+
+
+```{r}
+auto.arima(Data.Frame$Diff.Funds)
+```
+
+
+
+
+
+
+```{r}
+######################
+## Expanding window ##
+######################
+# VAR.Data = merge.xts(IP, CPI, Data.Frame$Diff.Funds) ##VAR Dataframce
+# FAVAR.dat = merge.xts(VAR.Data, Data.Frame[,3:ncol(Data.Frame)])
+set.seed(1)
+init_p    <- 250
+nahead    <- 3
+noMods    <- 8
+end_p     <- nrow(Data.Frame) - nahead
+n_windows <- end_p - init_p 
+fcstErr   <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
+fcstErr   <- xts(fcstErr, order.by = index(Data.Frame[(nrow(Data.Frame)-n_windows):nrow(Data.Frame), ]))
+fcst      <- fcstErr
+observed  <- Data.Frame[(init_p+nahead):nrow(Data.Frame),1]
+
+colnames(fcstErr) <- c("FAVAR", "FAVAR2", "AR", "RW", "MM", "VAR(1)", "VAR(3)", "ARMA(1,2)")
+
+for (i in 1:n_windows) { 
+  #print(sprintf("Expanding window: Iteration: %d", i))
+  
+  ## Factor reestimation ##
+  Data_set          <- yt_z1[1:(i+init_p-1), ]
+  cov_yt            <- t(Data_set) %*% Data_set / nrow(Data_set)
+  eig               <- eigen(cov_yt)
+  eig_val           <- as.data.frame(eig[1]$values)
+  eig_vec           <- as.data.frame(eig[2]$vectors)
+  Factor_loadings   <- sqrt(ncol(Data_set)) * eig_vec
+  Factor_loadings   <- as.data.frame(Factor_loadings)
+  Factor_components <- as.matrix(Data_set) %*% as.matrix(Factor_loadings/ncol(Data_set))
+  Factor_components <- as.data.frame(Factor_components)
+  Fhat              <- Factor_components[,1:7]
+  Fhat              <- xts(Fhat, order.by = index(Data.Frame[1:(i+init_p-1)]))
+  
+  ## Data set ##
+  TrainingDat       <- Data.Frame[1:(i+init_p-1),1:2]
+  TrainingDat       <- merge.xts(TrainingDat, Fhat)
+  VARTrainingdat    <- VAR.Data[1:(i+init_p-1),]
+  FAVARtrainingDat  <- merge.xts(VARTrainingdat, Fhat)
+  ## FAVAR ##
+  TrainingVAR       <- VAR(TrainingDat, type = "none", p = 1)
+  fcst[i,1]         <- predict(TrainingVAR, n.ahead = nahead)$fcst$Diff.Funds[nahead,1]
+  fcstErr[i,1]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,1]
+  ## FAVAR Y = 3 seres ##
+  TrainingFAVAR2    <- VAR(FAVARtrainingDat, type = "none", p = 1)
+  fcst[i,2]         <- predict(TrainingFAVAR2, n.ahead = nahead)$fcst$Diff.Funds[nahead,1]
+  fcstErr[i,2]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,2]
+  ## AR ##
+  TrainingAR        <- arima(TrainingDat$Diff.Funds, order = c(1, 0, 0))
+  fcst[i,3]         <- predict(TrainingAR, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,3]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,3]
+  ## RW ##
+  RW                <- arima(TrainingDat$Diff.Funds, order = c(0, 1, 0))
+  fcst[i,4]         <- predict(RW, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,4]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,4]
+  ## Mean model ##
+  MM                <- arima(TrainingDat$Diff.Funds, order = c(0,0,0), include.mean = T)
+  fcst[i,5]         <- predict(MM, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,5]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,5]
+  ## VAR(1) ##
+  TrainingVAR       <- VAR(VARTrainingdat, type = "none", p = 1)
+  fcst[i,6]         <- predict(TrainingVAR, n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcstErr[i,6]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,6]
+  ## VAR(3) ##
+  TrainingVAR2      <- VAR(VARTrainingdat, type = "none", p = 3)
+  fcst[i,7]         <- predict(TrainingVAR2, n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcstErr[i,7]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,7]
+    ## ARMA ##
+  TrainingARMA      <- arima(TrainingDat$Diff.Funds, order = c(1, 0, 2))
+  fcst[i,8]         <- predict(TrainingARMA, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,8]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,8]
+}
+```
+
+
+
+
+```{r fig.width=12}
+fcst = fcst[-nrow(fcst),]
+fcstErr = fcstErr[-nrow(fcstErr),]
+colnames(fcst) <- colnames(fcstErr)
+
+temp <- fcst %>% 
+  as_tibble %>% 
+  mutate(date = index(fcst)) %>% 
+  gather(variable, value, -date) 
+
+tempbg <- temp %>% rename("new"="variable")
+
+temp %>% 
+  ggplot(aes(date, value)) + 
+  geom_line(data=tempbg, aes(group=new),color="grey") + 
+  geom_line(aes(color=variable),size=1) + 
+  facet_wrap(~variable, nrow=2) +
+  labs(title = "Forecasts", 
+       subtitle = "Actual vs. Forecasts, Expanding window, 1-period ahead",
+       color="Series",
+       caption = "Rasmus M. Jensen",
+       y = "Fed Funds Rate")
+
+
+temp <- fcstErr %>% 
+  as_tibble %>% 
+  mutate(date = index(fcstErr)) %>% 
+  gather(variable, value, -date) 
+
+tempbg <- temp %>% rename("new"="variable")
+
+temp %>% 
+  ggplot(aes(date, value)) + 
+  geom_hline(aes(yintercept=0)) +
+  geom_line(data=tempbg, aes(group=new),color="grey") + 
+  geom_line(aes(color=variable),size=1) + 
+  facet_wrap(~variable, nrow=2) +
+  labs(title = "Forecast Errors", 
+       subtitle = "Expanding window, 1-period ahead",
+       color="Series",
+       caption = "Rasmus M. Jensen",
+       y = expression(epsilon[t+1*"|"*t]~"="~y[t+1]~"-"~f[t+1*"|"*t]))
+
+```
+
+
+
+
+```{r}
+ ## Forecast measures matrix
+fcst.sign = fcst
+
+for (z in 1:noMods){
+  for (i in 1:nrow(fcst)){
+    if (sign(fcst[i,z]) == sign(observed[i])){
+    fcst.sign[i,z] = 100
+    }
+    else if (sign(fcst[i,z])!=sign(observed[i])){
+    fcst.sign[i,z] = 0
+    }
+  }
+}
+
+Bias = colMeans(fcstErr)*100
+MSE  = colMeans(fcstErr^2)
+MSFE = colMeans(sqrt(fcstErr^2))
+Sign = colMeans(fcst.sign)
+Std  = Sign
+
+for (i in 1:8){
+  Std[i] = sd(fcst[,i])
+}
+
+Std  = Std*100
+dm   = cbind(Sign, 1:8)
+
+colnames(dm) = c("DM test statistic", "DM p-value")
+
+for (i in 1:8){
+  if (i==4){
+    dm[i,] = NA
+  }
+  else {
+    dm[i,1] = dm.test(fcstErr[,4], fcstErr[,i], alternative = "g", h = 1, power = 1)$statistic
+    dm[i,2] = dm.test(fcstErr[,4], fcstErr[,i], alternative = "g", h = 1, power = 1)$p.value
+  }
+}
+
+cbind(Std, Bias, MSE, MSFE, Sign, dm)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+################################
+## Alternate Split/Robustness ## 
+################################
+## Note that this loop is computational very heavy, Hence saving and reloading RDS 
+## after first time: Hence entire loop is Cmmented away.
+
+# MeanErr = Data.Frame[,FALSE]
+# MeanErr = cbind(MeanErr, c(1:nrow(MeanErr)), c(1:nrow(MeanErr)), c(1:nrow(MeanErr)), c(1:nrow(MeanErr)), c(1:nrow(MeanErr)), c(1:nrow(MeanErr)), c(1:nrow(MeanErr)))
+# colnames(MeanErr) = c("FAVAR1", "FAVAR2", "AR", "RW", "MM", "VAR", "VAR3")
+# MeanErr = MeanErr[180:324]
+# jmax=145
+# for (j in 1:jmax){
+#   print(sprintf("Mean Error Calc: %d", j))
+#   init_p = 179+j
+#   nahead = 1
+#   noMods = 7
+#   end_p = nrow(Data.Frame) - nahead
+#   n_windows = end_p - init_p 
+#   fcstErr = data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
+#   fcstErr = xts(fcstErr, order.by = index(Data.Frame[(nrow(Data.Frame)-n_windows):nrow(Data.Frame), ]))
+#   colnames(fcstErr) <- c("FAVAR", "FAVAR2", "AR", "RW", "MM", "VAR(1)", "VAR(3)")
+#   fcst = fcstErr
+#   observed = Data.Frame[(init_p+nahead):nrow(Data.Frame),1]
+#   
+#   for (i in 1:(n_windows)) { 
+#     print(sprintf("Expanding window %d", j, "of %d", jmax, ": Iteration: %d", i))
+#     ## Factor reestimation ##
+#     Data_set = yt_z1[1:(i+init_p-1), ]
+#     cov_yt <- t(Data_set) %*% Data_set / nrow(Data_set)
+#     eig = eigen(cov_yt)
+#     eig_val <- as.data.frame(eig[1]$values)
+#     eig_vec <- as.data.frame(eig[2]$vectors)
+#     Factor_loadings <- sqrt(ncol(Data_set)) * eig_vec
+#     Factor_loadings <-as.data.frame(Factor_loadings)
+#     Factor_components <- as.matrix(Data_set) %*% as.matrix(Factor_loadings/ncol(Data_set))
+#     Factor_components <- as.data.frame(Factor_components)
+#     Fhat <- Factor_components[,1:7]
+#     Fhat <- xts(Fhat, order.by = index(Data.Frame[1:(i+init_p-1)]))
+#     ## Data set ##
+#     TrainingDat = Data.Frame[1:(i+init_p-1),1:2]
+#     TrainingDat = merge.xts(TrainingDat, Fhat)
+#     VARTrainingdat = VAR.Data[1:(i+init_p-1),]
+#     FAVARtrainingDat = merge.xts(VARTrainingdat, Fhat)
+#     ## FAVAR ##
+#     TrainingVAR  = VAR(TrainingDat, type = "none", p = 1)
+#     fcstFAVAR    = predict(TrainingVAR, n.ahead = nahead)
+#     fcstFAVAR    = fcstFAVAR$fcst$Diff.Funds[nahead,1]
+#     fcst[i,1]    = fcstFAVAR
+#     fcstErr[i,1] = Data.Frame[(init_p+nahead+i-1),1] - fcstFAVAR
+#     ## FAVAR Y = 3 series##
+#     TrainingFAVAR2  = VAR(FAVARtrainingDat, type = "none", p = 1)
+#     fcstFAVAR2    = predict(TrainingFAVAR2, n.ahead = nahead)
+#     fcstFAVAR2    = fcstFAVAR2$fcst$Diff.Funds[nahead,1]
+#     fcst[i,2]    = fcstFAVAR2
+#     fcstErr[i,2] = Data.Frame[(init_p+nahead+i-1),1] - fcstFAVAR2
+#     ## AR ##
+#     TrainingAR  = arima(TrainingDat$Diff.Funds, order = c(1, 0, 0))
+#     fcstAR = predict(TrainingAR, n.ahead = nahead)
+#     fcstAR = fcstAR$pred[nahead]
+#     fcst[i,3] <- fcstAR
+#     fcstErr[i,3] = Data.Frame[(init_p+nahead+i-1),1] - fcstAR
+#     ## RW ##
+#     RW = arima(TrainingDat$Diff.Funds, order = c(0, 1, 0))
+#     fcstRW = predict(RW, n.ahead = nahead)
+#     fcstRW = fcstRW$pred[nahead]
+#     fcst[i,4] <- fcstRW
+#     fcstErr[i,4] = Data.Frame[(init_p+nahead+i-1),1] - fcstRW
+#     ## Mean model ##
+#     MM = arima(TrainingDat$Diff.Funds, order = c(0,0,0), include.mean = T)
+#     fcstMM = predict(MM, n.ahead = nahead)
+#     fcstMM = fcstMM$pred[nahead]
+#     fcst[i,5] <- fcstMM
+#     fcstErr[i,5] = Data.Frame[(init_p+nahead+i-1),1] - fcstMM
+#     ## VAR(1) ##
+#     TrainingVAR = VAR(VARTrainingdat, type = "none", p = 1)
+#     fcstVAR = predict(TrainingVAR, n.ahead = nahead)
+#     fcstVAR = fcstVAR$fcst$Diff.Funds[nahead, 1]
+#     fcst[i,6] = fcstVAR
+#     fcstErr[i,6] = Data.Frame[(init_p+nahead+i-1),1] - fcstVAR
+#     ## VAR(3) ##
+#     TrainingVAR2 = VAR(VARTrainingdat, type = "none", p = 3)
+#     fcstVAR2 = predict(TrainingVAR2, n.ahead = nahead)
+#     fcstVAR2 = fcstVAR2$fcst$Diff.Funds[nahead, 1]
+#     fcst[i,7] = fcstVAR2
+#     fcstErr[i,7] = Data.Frame[(init_p+nahead+i-1),1] - fcstVAR2
+#     ## Save Err ##
+#     for (k in 1:7){
+#       MeanErr[j,k] = mean(fcstErr[,k]^2)
+#     }
+#   }
+# }
+# 
+# saveRDS(MeanErr, "MeanErr.RDS")
+```
+
+
+
+
+
+
+```{r}
+MeanErr = readRDS("MeanErr.RDS")
+
+MeanErr %>% 
+  as_tibble %>% 
+  mutate(date = index(MeanErr)) %>% 
+  gather(variable, value, -date) %>% 
+  ggplot(aes(date, value, color=variable)) + 
+  geom_line() +   
+  labs(title = "Mean Square Forecast error: Robustness", 
+       subtitle = "MSFE over time, 1-period ahead, expanding window",
+       color="Series",
+       caption = "Rasmus M. Jensen",
+       y = expression(epsilon[t+1*"|"*t]~"="~y[t+1]~"-"~f[t+1*"|"*t]))
+```
+
+
+
+```{r fig.height=8, fig.width=10}
+FAVAR2dat = merge.xts(VAR.Data, Data.Frame[,3:9])
+FAVAR2 = VAR(FAVAR2dat, p = 1, type = "none")
+data = irf(FAVAR2, impulse = c("CPI", "IP", "Diff.Funds"), response = c("CPI", "IP", "Diff.Funds"), ortho = F, n.ahead = 24)
+
+variables <- data$irf %>% names
+
+ir <- lapply(1:length(variables), function(e){
+  data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
+    mutate("t" = 1:NROW(.)) %>%
+    gather(.,Variable, Value, -t)
+  upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
+    mutate("t" = 1:NROW(.)) %>%
+    gather(.,Variable, Upper, -t)
+  lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
+    mutate("t" = 1:NROW(.)) %>%
+    gather(.,Variable, Lower, -t)
+  res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
+    inner_join(.,lower_ci, c("t","Variable")) %>%
+    mutate(impulse = paste("Shock to", variables[e])) 
+}) %>% bind_rows
+
+ir$t <- ir$t-1
+
+ggplot(ir, aes(x = t, y = Value, group = Variable))  +
+  geom_line(size = 0.4) +
+  geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
+  geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
+  geom_ribbon(aes(x=t, ymin=Lower, ymax=Upper), alpha=0.2) +
+  geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
+  scale_x_continuous(limits=c(0,24), breaks = c(seq(0,24,by=4))) +
+  facet_wrap(Variable ~ impulse, scales="free") + 
+  labs(x="", y="", title="Impulse Response Functions")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+######################
+## Expanding window ##
+######################
+
+Data.Frame <- merge.xts(Fed.Funds, DFEDFUNDSFUTURES) 
+colnames(Data.Frame) <- c("Diff.Funds", "Diff.Fed.Funds.Futures")
+
+VAR.Data <- merge.xts(IP, CPI, Data.Frame$Diff.Funds) ##VAR Dataframce
+
+
+set.seed(1)
+init_p    <- 250
+nahead    <- 1
+noMods    <- 9
+end_p     <- nrow(Data.Frame) - nahead
+n_windows <- end_p - init_p 
+mat       <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
+fcst      <- xts(mat, order.by = index(Data.Frame[(nrow(Data.Frame)-n_windows):nrow(Data.Frame), ]))
+
+colnames(fcst) <- c("RW", "MM", "AR", "ARMA(1,2)", "VAR(1)", "VAR(3)", "FAVAR", "FAVAR2", "NETAR")
+
+for (i in 1:n_windows) { 
+
+  Data_set          <- yt_z1[1:(i+init_p-1),]
+  Fhat              <- xts(prcomp(Data_set, rank. = 7)$x, order.by = index(Data.Frame[1:(i+init_p-1)]))
+  TrainingDat       <- Data.Frame[1:(i + init_p - 1), 1:2] %>% merge.xts(Fhat)
+  VARTrainingdat    <- VAR.Data[1:(i + init_p - 1),]
+  FAVARtrainingDat  <- merge.xts(VARTrainingdat, Fhat)
+  
+  M_RW             <- arima(TrainingDat$Diff.Funds, order = c(0,1,0))
+  M_MM             <- arima(TrainingDat$Diff.Funds, order = c(0,0,0), include.mean = T)  
+  M_AR             <- arima(TrainingDat$Diff.Funds, order = c(1,0,0))  
+  M_ARMA           <- arima(TrainingDat$Diff.Funds, order = c(1,0,2))
+  M_VAR1           <- VAR(VARTrainingdat,   type = "none", p = 1)
+  M_VAR2           <- VAR(VARTrainingdat,   type = "none", p = 3)
+  M_FAVAR1         <- VAR(TrainingDat,      type = "none", p = 1)
+  M_FAVAR2         <- VAR(FAVARtrainingDat, type = "none", p = 1)
+  M_NETAR          <- nnetar(TrainingDat$Diff.Funds)
+  
+  fcst[i,1]        <- predict(M_RW,      n.ahead = nahead)$pred[nahead]  
+  fcst[i,2]        <- predict(M_MM,      n.ahead = nahead)$pred[nahead]  
+  fcst[i,3]        <- predict(M_AR,      n.ahead = nahead)$pred[nahead]
+  fcst[i,4]        <- predict(M_ARMA,    n.ahead = nahead)$pred[nahead]
+  fcst[i,5]        <- predict(M_VAR1,    n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcst[i,6]        <- predict(M_VAR2,    n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]  
+  fcst[i,7]        <- predict(M_FAVAR1,  n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcst[i,8]        <- predict(M_FAVAR2,  n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcst[i,9]        <- predict(M_NETAR,   n.ahead = nahead)$mean[nahead]
+}
+
+pr <- Data.Frame[,1]
+fcstErr <- cbind(pr,pr,pr,pr,pr,pr,pr,pr, pr) - fcst
+colnames(fcstErr) <- colnames(fcst)
+```
+
+
+
+
+
+```{r}
+ ## Forecast measures matrix
+observed  <- Data.Frame[(init_p+nahead):nrow(Data.Frame),1]
+fcst.sign = fcst
+
+for (z in 1:noMods){
+  for (i in 1:nrow(fcst)){
+    if (sign(fcst[i,z]) == sign(observed[i])){
+    fcst.sign[i,z] = 100
+    }
+    else if (sign(fcst[i,z])!=sign(observed[i])){
+    fcst.sign[i,z] = 0
+    }
+  }
+}
+
+Bias = colMeans(fcstErr)*100
+MSE  = colMeans(fcstErr^2)
+MSFE = colMeans(sqrt(fcstErr^2))
+Sign = colMeans(fcst.sign)
+Std  = Sign
+
+for (i in 1:9){
+  Std[i] = sd(fcst[,i])
+}
+
+Std  = Std*100
+dm   = cbind(Sign, 1:9)
+
+colnames(dm) = c("DM test statistic", "DM p-value")
+
+for (i in 1:9){
+  if (i==1){
+    dm[i,] = NA
+  }
+  else {
+    dm[i,1] = dm.test(fcstErr[,1], fcstErr[,i], alternative = "g", h = 1, power = 1)$statistic
+    dm[i,2] = dm.test(fcstErr[,1], fcstErr[,i], alternative = "g", h = 1, power = 1)$p.value
+  }
+}
+
+round(cbind(Std, Bias, MSE, MSFE, Sign, dm),4)
+```
+
+

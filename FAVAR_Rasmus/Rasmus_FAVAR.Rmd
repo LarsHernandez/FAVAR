@@ -164,42 +164,39 @@ for (i in 1:ncol(yt)){
 #########
 ## PCA ##
 #########
-
-yt_z1 <- as.matrix(yt_z)
+yt_z1  <- as.matrix(yt_z)
 cov_yt <- t(yt_z1) %*% yt_z1 / t ## Defining the 128x128 covariance matrix
+
 ## Eigen decomposition, identical to SVD here (symmetric square matrix)
-eig = eigen(cov_yt) 
-eig_val <- as.data.frame(eig[1]$values) ## Eigenvalue
+eig               <- eigen(cov_yt) 
+eig_val           <- as.data.frame(eig[1]$values) ## Eigenvalue
 colnames(eig_val) <- "Eigenvalue"
 rownames(eig_val) <- 1:nrow(eig_val)
-eig_vec <- as.data.frame(eig[2]$vectors) ## Eigenvector
+
+eig_vec           <- as.data.frame(eig[2]$vectors) ## Eigenvector
 colnames(eig_vec) <- 1:ncol(eig_vec)
 rownames(eig_val) <- 1:nrow(eig_vec)
 
-Factor_loadings <- sqrt(ncol(yt_z)) * eig_vec
-Factor_loadings <-as.data.frame(Factor_loadings)
+Factor_loadings   <- sqrt(ncol(yt_z)) * eig_vec
+Factor_loadings   <- as.data.frame(Factor_loadings)
 Factor_components <- as.matrix(yt_z) %*% as.matrix(Factor_loadings/ncol(yt_z))
 Factor_components <- as.data.frame(Factor_components)
 
-Fhat <- Factor_components[,1:7] ## Using the first 7 factors as indicated by the IC2
-Fhat_d <- cbind(DateVec[3:nrow(DateVec),1], Fhat) ## Reattaching Datevector
+Fhat              <- Factor_components[,1:7] ## Using the first 7 factors as indicated by the IC2
+Fhat_d            <- cbind(DateVec[3:nrow(DateVec),1], Fhat) ## Reattaching Datevector
 
 ```
 
 ```{r fig.width=12}
 fit.pca <- prcomp(yt_z, rank. = 7, scale. = T)
-
 summary(fit.pca)
 
 Fhat2 <- fit.pca$x %>% as_tibble()
 colnames(Fhat2) <- c("1", "2", "3","4", "5", "6", "7")
 
-#scl <- apply(Fhat2, MARGIN = 2, FUN = scale) %>% as_tibble
-
 rbind(Fhat %>% mutate(type="Rasmus",n=c(1:348)), Fhat2 %>% mutate(type="prcomp",n=c(1:348))) %>% 
   gather(variable, value, -n, -type) %>% 
   ggplot(aes(n, value, color=type)) + geom_line() + facet_wrap(type~variable, scales="free", nrow=2) + labs(title="Factors")
-
 
 eig_rasmus <- eig_vec[,c(1:7)]
 eig_prcomp <- fit.pca$rotation
@@ -366,8 +363,8 @@ ggplot(SHADOWRATE) +
   geom_line(aes(Date, SHADOWRATE$"Policy Rate")) +
   labs(title = "Shadow Federal Funds rate")
 
-ggplot(FEDFUNDSFUTURES) + 
-  geom_line(aes(Date, Settle)) +
+ggplot() + 
+  geom_line(aes(index(FEDFUNDSFUTURES), FEDFUNDSFUTURES)) +
   labs(title = "Federal Funds Futures")
 
 ggplot() + 
@@ -446,14 +443,14 @@ colnames(Data.Frame) <- c("Diff.Funds", "Diff.Fed.Funds.Futures", "F1", "F2", "F
 
 
 
-```{r}
+```{r fig.width=12}
 Data.Frame %>% 
   as.tibble %>% 
   mutate(date = index(Data.Frame)) %>% 
   gather(variable, value ,-date, -Diff.Fed.Funds.Futures, -Diff.Funds) %>% 
   ggplot(aes(date, value)) + 
   geom_line() + 
-  facet_wrap(~variable, nrow=4)
+  facet_wrap(~variable, nrow=2)
 ```
 
 
@@ -617,6 +614,9 @@ factors.fitted.res %>%
 
 
 
+```{r}
+auto.arima(Data.Frame$Diff.Funds)
+```
 
 
 
@@ -632,7 +632,7 @@ factors.fitted.res %>%
 
 init_p    <- 250
 nahead    <- 3
-noMods    <- 7
+noMods    <- 8
 end_p     <- nrow(Data.Frame) - nahead
 n_windows <- end_p - init_p 
 fcstErr   <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
@@ -640,7 +640,7 @@ fcstErr   <- xts(fcstErr, order.by = index(Data.Frame[(nrow(Data.Frame)-n_window
 fcst      <- fcstErr
 observed  <- Data.Frame[(init_p+nahead):nrow(Data.Frame),1]
 
-colnames(fcstErr) <- c("FAVAR", "FAVAR2", "AR", "RW", "MM", "VAR(1)", "VAR(3)")
+colnames(fcstErr) <- c("FAVAR", "FAVAR2", "AR", "RW", "MM", "VAR(1)", "VAR(3)", "ARMA(1,2)")
 
 for (i in 1:n_windows) { 
   #print(sprintf("Expanding window: Iteration: %d", i))
@@ -665,46 +665,36 @@ for (i in 1:n_windows) {
   FAVARtrainingDat  <- merge.xts(VARTrainingdat, Fhat)
   ## FAVAR ##
   TrainingVAR       <- VAR(TrainingDat, type = "none", p = 1)
-  fcstFAVAR         <- predict(TrainingVAR, n.ahead = nahead)
-  fcstFAVAR         <- fcstFAVAR$fcst$Diff.Funds[nahead,1]
-  fcst[i,1]         <- fcstFAVAR
-  fcstErr[i,1]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstFAVAR
+  fcst[i,1]         <- predict(TrainingVAR, n.ahead = nahead)$fcst$Diff.Funds[nahead,1]
+  fcstErr[i,1]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,1]
   ## FAVAR Y = 3 seres ##
   TrainingFAVAR2    <- VAR(FAVARtrainingDat, type = "none", p = 1)
-  fcstFAVAR2        <- predict(TrainingFAVAR2, n.ahead = nahead)
-  fcstFAVAR2        <- fcstFAVAR2$fcst$Diff.Funds[nahead,1]
-  fcst[i,2]         <- fcstFAVAR2
-  fcstErr[i,2]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstFAVAR2
+  fcst[i,2]         <- predict(TrainingFAVAR2, n.ahead = nahead)$fcst$Diff.Funds[nahead,1]
+  fcstErr[i,2]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,2]
   ## AR ##
   TrainingAR        <- arima(TrainingDat$Diff.Funds, order = c(1, 0, 0))
-  fcstAR            <- predict(TrainingAR, n.ahead = nahead)
-  fcstAR            <- fcstAR$pred[nahead]
-  fcst[i,3]         <- fcstAR
-  fcstErr[i,3]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstAR
+  fcst[i,3]         <- predict(TrainingAR, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,3]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,3]
   ## RW ##
   RW                <- arima(TrainingDat$Diff.Funds, order = c(0, 1, 0))
-  fcstRW            <- predict(RW, n.ahead = nahead)
-  fcstRW            <- fcstRW$pred[nahead]
-  fcst[i,4]         <- fcstRW
-  fcstErr[i,4]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstRW
+  fcst[i,4]         <- predict(RW, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,4]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,4]
   ## Mean model ##
   MM                <- arima(TrainingDat$Diff.Funds, order = c(0,0,0), include.mean = T)
-  fcstMM            <- predict(MM, n.ahead = nahead)
-  fcstMM            <- fcstMM$pred[nahead]
-  fcst[i,5]         <- fcstMM
-  fcstErr[i,5]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstMM
+  fcst[i,5]         <- predict(MM, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,5]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,5]
   ## VAR(1) ##
   TrainingVAR       <- VAR(VARTrainingdat, type = "none", p = 1)
-  fcstVAR           <- predict(TrainingVAR, n.ahead = nahead)
-  fcstVAR           <- fcstVAR$fcst$Diff.Funds[nahead, 1]
-  fcst[i,6]         <- fcstVAR
-  fcstErr[i,6]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstVAR
+  fcst[i,6]         <- predict(TrainingVAR, n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcstErr[i,6]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,6]
   ## VAR(3) ##
   TrainingVAR2      <- VAR(VARTrainingdat, type = "none", p = 3)
-  fcstVAR2          <- predict(TrainingVAR2, n.ahead = nahead)
-  fcstVAR2          <- fcstVAR2$fcst$Diff.Funds[nahead, 1]
-  fcst[i,7]         <- fcstVAR2
-  fcstErr[i,7]      <- Data.Frame[(init_p+nahead+i-1),1] - fcstVAR2
+  fcst[i,7]         <- predict(TrainingVAR2, n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcstErr[i,7]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,7]
+    ## ARMA ##
+  TrainingARMA      <- arima(TrainingDat$Diff.Funds, order = c(1, 0, 2))
+  fcst[i,8]         <- predict(TrainingARMA, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,8]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,8]
 }
 ```
 
@@ -780,16 +770,16 @@ MSFE = colMeans(sqrt(fcstErr^2))
 Sign = colMeans(fcst.sign)
 Std  = Sign
 
-for (i in 1:7){
+for (i in 1:8){
   Std[i] = sd(fcst[,i])
 }
 
 Std  = Std*100
-dm   = cbind(Sign, 1:7)
+dm   = cbind(Sign, 1:8)
 
 colnames(dm) = c("DM test statistic", "DM p-value")
 
-for (i in 1:7){
+for (i in 1:8){
   if (i==4){
     dm[i,] = NA
   }
@@ -983,7 +973,116 @@ ggplot(ir, aes(x = t, y = Value, group = Variable))  +
 
 
 
+```{r}
+######################
+## Expanding window ##
+######################
+# VAR.Data = merge.xts(IP, CPI, Data.Frame$Diff.Funds) ##VAR Dataframce
+# FAVAR.dat = merge.xts(VAR.Data, Data.Frame[,3:ncol(Data.Frame)])
+
+init_p    <- 250
+nahead    <- 3
+noMods    <- 8
+end_p     <- nrow(Data.Frame) - nahead
+n_windows <- end_p - init_p 
+fcstErr   <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
+fcstErr   <- xts(fcstErr, order.by = index(Data.Frame[(nrow(Data.Frame)-n_windows):nrow(Data.Frame), ]))
+fcst      <- fcstErr
+observed  <- Data.Frame[(init_p+nahead):nrow(Data.Frame),1]
+
+colnames(fcstErr) <- c("FAVAR", "FAVAR2", "AR", "RW", "MM", "VAR(1)", "VAR(3)", "ARMA(1,2)")
+
+for (i in 1:n_windows) { 
+  #print(sprintf("Expanding window: Iteration: %d", i))
+  
+  ## Factor reestimation ##
+  Data_set          <- yt_z1[1:(i+init_p-1),]
+  
+  Fhat              <- xts(prcomp(Data_set, rank. = 7)$x, order.by = index(Data.Frame[1:(i+init_p-1)]))
+  
+  ## Data set ##
+  TrainingDat       <- Data.Frame[1:(i+init_p-1),1:2]
+  TrainingDat       <- merge.xts(TrainingDat, Fhat)
+  VARTrainingdat    <- VAR.Data[1:(i+init_p-1),]
+  FAVARtrainingDat  <- merge.xts(VARTrainingdat, Fhat)
+  ## FAVAR ##
+  TrainingVAR       <- VAR(TrainingDat, type = "none", p = 1)
+  fcst[i,1]         <- predict(TrainingVAR, n.ahead = nahead)$fcst$Diff.Funds[nahead,1]
+  fcstErr[i,1]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,1]
+  ## FAVAR Y = 3 seres ##
+  TrainingFAVAR2    <- VAR(FAVARtrainingDat, type = "none", p = 1)
+  fcst[i,2]         <- predict(TrainingFAVAR2, n.ahead = nahead)$fcst$Diff.Funds[nahead,1]
+  fcstErr[i,2]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,2]
+  ## AR ##
+  TrainingAR        <- arima(TrainingDat$Diff.Funds, order = c(1, 0, 0))
+  fcst[i,3]         <- predict(TrainingAR, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,3]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,3]
+  ## RW ##
+  RW                <- arima(TrainingDat$Diff.Funds, order = c(0, 1, 0))
+  fcst[i,4]         <- predict(RW, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,4]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,4]
+  ## Mean model ##
+  MM                <- arima(TrainingDat$Diff.Funds, order = c(0,0,0), include.mean = T)
+  fcst[i,5]         <- predict(MM, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,5]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,5]
+  ## VAR(1) ##
+  TrainingVAR       <- VAR(VARTrainingdat, type = "none", p = 1)
+  fcst[i,6]         <- predict(TrainingVAR, n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcstErr[i,6]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,6]
+  ## VAR(3) ##
+  TrainingVAR2      <- VAR(VARTrainingdat, type = "none", p = 3)
+  fcst[i,7]         <- predict(TrainingVAR2, n.ahead = nahead)$fcst$Diff.Funds[nahead, 1]
+  fcstErr[i,7]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,7]
+    ## ARMA ##
+  TrainingARMA      <- arima(TrainingDat$Diff.Funds, order = c(1, 0, 2))
+  fcst[i,8]         <- predict(TrainingARMA, n.ahead = nahead)$pred[nahead]
+  fcstErr[i,8]      <- Data.Frame[(init_p+nahead+i-1),1] - fcst[i,8]
+}
+```
 
 
+
+```{r}
+ ## Forecast measures matrix
+fcst.sign = fcst
+
+for (z in 1:noMods){
+  for (i in 1:nrow(fcst)){
+    if (sign(fcst[i,z]) == sign(observed[i])){
+    fcst.sign[i,z] = 100
+    }
+    else if (sign(fcst[i,z])!=sign(observed[i])){
+    fcst.sign[i,z] = 0
+    }
+  }
+}
+
+Bias = colMeans(fcstErr)*100
+MSE  = colMeans(fcstErr^2)
+MSFE = colMeans(sqrt(fcstErr^2))
+Sign = colMeans(fcst.sign)
+Std  = Sign
+
+for (i in 1:8){
+  Std[i] = sd(fcst[,i])
+}
+
+Std  = Std*100
+dm   = cbind(Sign, 1:8)
+
+colnames(dm) = c("DM test statistic", "DM p-value")
+
+for (i in 1:8){
+  if (i==4){
+    dm[i,] = NA
+  }
+  else {
+    dm[i,1] = dm.test(fcstErr[,4], fcstErr[,i], alternative = "g", h = 1, power = 1)$statistic
+    dm[i,2] = dm.test(fcstErr[,4], fcstErr[,i], alternative = "g", h = 1, power = 1)$p.value
+  }
+}
+
+cbind(Std, Bias, MSE, MSFE, Sign, dm)
+```
 
 

@@ -153,7 +153,6 @@ INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>%
   mutate(Value = c(NA, diff(log(Value))*100))
 
 
-
 variables <- tibble(INFL =INFL$Value[-c(1,2)], 
                     FFR = FFR$Value[-c(1,2)])
 
@@ -462,6 +461,182 @@ decomp$INFL[60,-c(1,2)] %*% t(eigen) %>%
   mutate(name = rownames(eigen)) %>% 
   arrange(desc(V1)) %>% 
   xtable(digits = 4)
+
+
+
+
+
+
+
+
+
+# Forcasting --------------------------------------------------------------
+
+PROD <- Quandl("FRED/INDPRO", api_key = key) %>% 
+  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  arrange(Date) %>% 
+  mutate(Value = c(NA, diff(log(Value))*100))
+
+raw_var <- FAVAR_T[,-1]
+
+
+Data.Frame <- xts(variables[,c(2,3)], order.by = variables[,1])
+
+VAR.Data <- xts(cbind(PROD[,2], INFL[,2], FFR[,2]), order.by = FFR[,1])[-c(1,2),]
+colnames(VAR.Data) <- c("PROD", "INFL", "FFR")
+
+
+
+set.seed(2019)
+init_p    <- 550
+nahead    <- 1
+noMods    <- 8
+end_p     <- nrow(Data.Frame) - nahead
+n_windows <- end_p - init_p 
+mat       <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
+fcst      <- xts(mat, order.by = index(Data.Frame[(nrow(Data.Frame) - n_windows):nrow(Data.Frame), ]))
+
+colnames(fcst) <- c("RW", "MM", "AR(1)", "ARMA(5,1)", "VAR(1)", "VAR(13)", "FAVAR(1)", "FAVAR(5)")
+
+for (i in 1:n_windows) { 
+  
+  Data_set          <- raw_var[1:(i+init_p-1),]
+  Fhat              <- xts(prcomp(Data_set, rank. = 5)$x, order.by = index(Data.Frame[1:(i+init_p-1)]))
+  
+  T_BASE            <- Data.Frame[1:(i + init_p - 1), 1:2]$INFL
+  T_VAR             <- VAR.Data[1:(i + init_p - 1),]
+  T_FAVAR           <- Data.Frame[1:(i + init_p - 1), 1:2] %>% merge.xts(Fhat)
+
+  
+  M_RW             <- arima(T_BASE, order = c(0,1,0))
+  M_MM             <- arima(T_BASE, order = c(0,0,0), include.mean = T)  
+  M_AR             <- arima(T_BASE, order = c(1,0,0))  
+  M_ARMA           <- arima(T_BASE, order = c(5,0,1))
+  M_VAR1           <- VAR(T_VAR,    type = "none", p = 1)
+  M_VAR2           <- VAR(T_VAR,    type = "none", p = 13)
+  M_FAVAR1         <- VAR(T_FAVAR,  type = "none", p = 1)
+  M_FAVAR2         <- VAR(T_FAVAR,  type = "none", p = 5)
+  
+  fcst[i,1]        <- predict(M_RW,      n.ahead = nahead)$pred[nahead]  
+  fcst[i,2]        <- predict(M_MM,      n.ahead = nahead)$pred[nahead]  
+  fcst[i,3]        <- predict(M_AR,      n.ahead = nahead)$pred[nahead]
+  fcst[i,4]        <- predict(M_ARMA,    n.ahead = nahead)$pred[nahead]
+  fcst[i,5]        <- predict(M_VAR1,    n.ahead = nahead)$fcst$INFL[nahead, 1]
+  fcst[i,6]        <- predict(M_VAR2,    n.ahead = nahead)$fcst$INFL[nahead, 1]  
+  fcst[i,7]        <- predict(M_FAVAR1,  n.ahead = nahead)$fcst$INFL[nahead, 1]
+  fcst[i,8]        <- predict(M_FAVAR2,  n.ahead = nahead)$fcst$INFL[nahead, 1]
+}
+
+pr <- Data.Frame[,1]
+fcstErr <- cbind(pr,pr,pr,pr,pr,pr,pr,pr) - fcst
+colnames(fcstErr) <- colnames(fcst)
+
+
+
+
+
+
+## Forecast measures matrix
+observed  <- Data.Frame[(init_p+nahead):nrow(Data.Frame),1]
+fcst.sign = fcst
+
+for (z in 1:noMods){
+  for (i in 1:nrow(fcst)){
+    if (sign(fcst[i,z]) == sign(observed[i])){
+      fcst.sign[i,z] = 100
+    }
+    else if (sign(fcst[i,z])!=sign(observed[i])){
+      fcst.sign[i,z] = 0
+    }
+  }
+}
+
+Bias = colMeans(fcstErr)*100
+MSE  = colMeans(fcstErr^2)
+MSFE = colMeans(sqrt(fcstErr^2))
+Sign = colMeans(fcst.sign)
+Std  = Sign
+
+for (i in 1:8){
+  Std[i] = sd(fcst[,i])
+}
+
+Std  = Std*100
+dm   = cbind(Sign, 1:8)
+
+colnames(dm) = c("DM test statistic", "DM p-value")
+
+for (i in 1:8){
+  if (i==1){
+    dm[i,] = NA
+  }
+  else {
+    dm[i,1] = dm.test(fcstErr[,1], fcstErr[,i], alternative = "g", h = 1, power = 1)$statistic
+    dm[i,2] = dm.test(fcstErr[,1], fcstErr[,i], alternative = "g", h = 1, power = 1)$p.value
+  }
+}
+
+ftab <- round(cbind(Std, Bias, MSE, MSFE, Sign, dm),4)
+ftab
+xtable(ftab)
+
+
+
+
+
+fcst = fcst[-nrow(fcst),]
+fcstErr = fcstErr[-nrow(fcstErr),]
+colnames(fcst) <- colnames(fcstErr)
+
+temp <- fcst %>% 
+  as_tibble %>% 
+  mutate(date = index(fcst)) %>% 
+  gather(variable, value, -date) 
+
+tempbg <- temp %>% rename("new"="variable")
+
+temp %>% 
+  ggplot(aes(date, value)) + 
+  geom_line(data=tempbg, aes(group=new),color="grey") + 
+  geom_line() + 
+  #geom_line(data=INFL[-c(1:550),], aes(Date, Value)) +
+  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank()) + 
+  scale_x_continuous(breaks)
+
+ 
+ temp <- fcstErr %>% 
+   as_tibble %>% 
+   mutate(date = index(fcstErr)) %>% 
+   gather(variable, value, -date) 
+ 
+# tempbg <- temp %>% rename("new"="variable")
+# 
+# temp %>% 
+#   ggplot(aes(date, value)) + 
+#   geom_hline(aes(yintercept=0)) +
+#   geom_line(data=tempbg, aes(group=new),color="grey") + 
+#   geom_line() + 
+#   facet_wrap(~variable, nrow=2) +
+#   labs(title = "Forecast Errors", 
+#        subtitle = "Expanding window, 1-period ahead",
+#        color="Series",
+#        caption = "Rasmus M. Jensen",
+#        y = expression(epsilon[t+1*"|"*t]~"="~y[t+1]~"-"~f[t+1*"|"*t]))
+
+
+temp %>% 
+  ggplot(aes(date, abs(value))) + 
+  geom_line() + 
+  geom_ribbon(aes(ymin=0, ymax=abs(value)), alpha=0.3) +
+  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank())
+
+
+
+
+
+
+
+
 
 
 

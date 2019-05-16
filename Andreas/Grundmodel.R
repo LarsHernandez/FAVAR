@@ -26,10 +26,6 @@ COM <- Quandl("FRED/PPIIDC") %>%
   filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
   arrange(Date)
 
-UNE <- Quandl("FRED/UNRATE") %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
-  arrange(Date)
-
 BOND <- Quandl("FED/SVENY", collapse = "m") %>% 
   filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
   arrange(Date)
@@ -41,27 +37,25 @@ CPI <- CPI$Value
 PROD <- PROD$Value
 DOW <- Aktie$`US DOW JONES INDUSTRIALS SHARE PRICE INDEX (EP) NADJ`
 COM <- COM$Value
-UNE <- UNE$Value
 SPREAD <- BOND$SVENY05-BOND$SVENY02
 SPREAD2 <- c(rnorm(28, mean = 0.4,sd = 0.1),SPREAD)
   
 # Stationæritet-test  ----------------------------------------------------
 
-adf.test(SPREAD2)
+adf.test(dPROD)
 
 dFFR <- diff(FFR)
 dCPI <- diff(log(CPI))*100
 dPROD <- diff(log(PROD))*100
 dDOW <- diff(log(DOW))*100
 dCOM <- diff(log(COM))*100
-dUNE <- diff(UNE)
 
 # Datasæt til model-------------------------------------------------------
 
 Data <-  cbind(dCPI,dPROD,dFFR) #Grundmodel
 Data1 <- cbind(dCPI,dCOM,dPROD,dFFR) #Grundmodel + commodity
 Data2 <- cbind(dCPI,dDOW,dPROD,dFFR) #Grundmodel + aktie (D&J)
-Data3 <- cbind(dCPI,dUNE,dPROD,dFFR) #Grundmodel + Unemployment
+Data3 <- cbind(dCPI,cyc,dPROD,dFFR) #Grundmodel + outputgap
 Data4 <- cbind(dCPI,SPREAD2,dPROD,dFFR) #Grundmodel + Spread
 
 # Modeller  --------------------------------------------------------------

@@ -42,7 +42,7 @@ SPREAD2 <- c(rnorm(28, mean = 0.4,sd = 0.1),SPREAD)
   
 # Stationæritet-test  ----------------------------------------------------
 
-adf.test(dPROD)
+adf.test(COM)
 
 dFFR <- diff(FFR)
 dCPI <- diff(log(CPI))*100
@@ -55,34 +55,34 @@ dCOM <- diff(log(COM))*100
 Data <-  cbind(dCPI,dPROD,dFFR) #Grundmodel
 Data1 <- cbind(dCPI,dCOM,dPROD,dFFR) #Grundmodel + commodity
 Data2 <- cbind(dCPI,dDOW,dPROD,dFFR) #Grundmodel + aktie (D&J)
-Data3 <- cbind(dCPI,cyc,dPROD,dFFR) #Grundmodel + outputgap
+Data3 <- cbind(dCPI,cyc,dFFR) #Grundmodel + outputgap
 Data4 <- cbind(dCPI,SPREAD2,dPROD,dFFR) #Grundmodel + Spread
 
 # Modeller  --------------------------------------------------------------
 
 VARselect(Data, lag.max = 24)
 V <- VAR(Data, p=13)
-irf <- irf(V, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf <- irf(V, impulse = "dFFR", response = "dFFR", ortho = T, cumulative = F, n.ahead = 48, ci=0.66)
 plot(irf)
 
 VARselect(Data1, lag.max = 24)
 V1 <- VAR(Data1, p=13)
-irf1 <- irf(V1, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf1 <- irf(V1, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48, ci=0.66)
 plot(irf1)
 
 VARselect(Data2, lag.max = 24)
 V2 <- VAR(Data2, p=13)
-irf2 <- irf(V2, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf2 <- irf(V2, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48, ci=0.66)
 plot(irf2)
 
 VARselect(Data3, lag.max = 24)
 V3 <- VAR(Data3, p=13)
-irf3 <- irf(V3, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf3 <- irf(V3, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48, ci=0.66)
 plot(irf3)
 
 VARselect(Data4, lag.max = 24)
 V4 <- VAR(Data4, p=13)
-irf4 <- irf(V4, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = T, n.ahead = 48)
+irf4 <- irf(V4, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 plot(irf4)
 
 # TEST af rækkefølge --------------------------------------------------------------------
@@ -114,7 +114,7 @@ irf21 <- irf(VAR(Data4[,c(4,2,1,3)], p=13), impulse = "dFFR", response = "dCPI",
 irf22 <- irf(VAR(Data4[,c(4,2,3,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 irf23 <- irf(VAR(Data4[,c(4,3,1,2)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
 irf24 <- irf(VAR(Data4[,c(4,3,2,1)], p=13), impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 48)
-
+F
 a <- cbind(irf1$irf$dFFR,
            irf2$irf$dFFR,
            irf3$irf$dFFR,

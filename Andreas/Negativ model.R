@@ -24,7 +24,7 @@ PROD <- Quandl("FRED/INDPRO") %>%
   filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
   arrange(Date)
 
-Aktie <- read_delim("//student.aau.dk/Users/aklitg15/Desktop/aktiepriser_eikon - negativmodel.csv", ";", escape_double = FALSE, locale = locale(decimal_mark = ","), trim_ws = TRUE)
+Aktie <- read_delim("DOW.csv", ";", escape_double = FALSE, locale = locale(decimal_mark = ","), trim_ws = TRUE)
 
 COM <- Quandl("FRED/PPIIDC") %>% 
   filter(Date >= "2000-01-01", Date < "2015-12-01") %>% 
@@ -183,27 +183,35 @@ a %>% as_tibble %>% mutate(n=c(1:25)) %>% gather(variable, value, -n) %>% ggplot
 SHA2 <- SHA %>% as_tibble %>% mutate(type="SHA", n=seq(from=as.Date("2000-01-01"), to =as.Date("2015-11-01"), by="months"))
 FFR2 <- FFR %>% as_tibble %>% mutate(type="FFR", n=seq(from=as.Date("2000-01-01"), to =as.Date("2015-11-01"), by="months"))
 negativ <- rbind(FFR2,SHA2)
-negativ %>% ggplot(aes(n, value, linetype=type)) + geom_line() + geom_hline(aes(yintercept=0),linetype="dashed")
+
+negativ %>% 
+  ggplot(aes(n, value, linetype=type)) + 
+  geom_line() + 
+  geom_hline(aes(yintercept=0),linetype="solid", color="grey") + 
+  scale_linetype_manual(labels=c("Federal Funds\nRate", "Shaddow Rate"), values=c("solid", "dotted"), name="Type") +
+  th + theme(axis.title = element_blank())
 
 irf_FFR1 <- irf_FFR$irf$dFFR
 irf_FFR2 <- irf_FFR$Lower$dFFR
 irf_FFR3 <- irf_FFR$Upper$dFFR
 
-samligning_FFR <- cbind(irf_FFR1,irf_FFR2,irf_FFR3) %>% as_tibble  %>% mutate(type="hej") %>% mutate(n=c(1:25))
+samligning_FFR <- cbind(irf_FFR1,irf_FFR2,irf_FFR3) %>% as_tibble  %>% mutate(type="Federal Funds Rate") %>% mutate(n=c(1:25))
 samligning1 <- samligning_FFR %>% gather(variable, value, -type)
 
 irf_SHA1 <- irf_SHA$irf$dSHA
 irf_SHA2 <- irf_SHA$Lower$dSHA
 irf_SHA3 <- irf_SHA$Upper$dSHA
 
-samligning_SHA <- cbind(irf_SHA1,irf_SHA2,irf_SHA3) %>% as_tibble  %>% mutate(type="dav") %>% mutate(n=c(1:25))
+samligning_SHA <- cbind(irf_SHA1,irf_SHA2,irf_SHA3) %>% as_tibble  %>% mutate(type="Shadow Rate") %>% mutate(n=c(1:25))
 samligning2 <- samligning_SHA %>% gather(variable, value, -type)
 
 
 samligning <- rbind(samligning_FFR,samligning_SHA)
 
 samligning %>% gather(variable, value, -type, -n) %>% 
-  ggplot(aes(n, value, linetype=variable, color=type))+ 
-  geom_line(size=0.6) + 
-  geom_hline(aes(yintercept=0), linetype="dotted") + 
-  scale_linetype_manual(values = c("solid", "dashed", "dashed"))
+  ggplot(aes(n, value, linetype=variable))+ 
+  geom_hline(aes(yintercept=0), linetype="solid", color="grey") + 
+  geom_line(size=0.6, show.legend = FALSE) + 
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  facet_wrap(~type) + 
+  th  + theme(axis.title = element_blank())

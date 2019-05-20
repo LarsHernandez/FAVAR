@@ -971,7 +971,7 @@ VAR.Data <- merge.xts(IP, CPI, Data.Frame$Diff.Funds) ##VAR Dataframce
 
 set.seed(1)
 init_p    <- 250
-nahead    <- 1
+nahead    <- 3
 noMods    <- 9
 end_p     <- nrow(Data.Frame) - nahead
 n_windows <- end_p - init_p 

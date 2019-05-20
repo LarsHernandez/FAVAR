@@ -152,6 +152,11 @@ INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>%
   arrange(Date) %>% 
   mutate(Value = c(NA, diff(log(Value))*100))
 
+PROD <- Quandl("FRED/INDPRO", api_key = key) %>% 
+  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  arrange(Date) %>% 
+  mutate(Value = c(NA, diff(log(Value))*100))
+
 
 variables <- tibble(INFL =INFL$Value[-c(1,2)], 
                     FFR = FFR$Value[-c(1,2)])
@@ -471,11 +476,6 @@ decomp$INFL[60,-c(1,2)] %*% t(eigen) %>%
 
 
 # Forcasting --------------------------------------------------------------
-
-PROD <- Quandl("FRED/INDPRO", api_key = key) %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
-  arrange(Date) %>% 
-  mutate(Value = c(NA, diff(log(Value))*100))
 
 raw_var <- FAVAR_T[,-1]
 

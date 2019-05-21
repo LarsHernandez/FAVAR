@@ -109,18 +109,19 @@ star <- tibble(IC1 = IC1$r_star,
                IC3 = IC3$r_star) %>% 
   gather(variable, value)
         
-tibble(IC1 = IC1$IC,
+p1 <- tibble(IC1 = IC1$IC,
        IC2 = IC2$IC,
        IC3 = IC3$IC,
        n   = c(1:15)) %>% gather(variable, value, -n) %>% 
   ggplot(aes(n,value)) + 
-  geom_vline(data=star, aes(xintercept=value), linetype="dashed", color="grey") + 
-  geom_point() + 
+  geom_vline(data=star, aes(xintercept=value), size=0.3) + 
+  geom_point(shape=21, size=2, fill="white") + 
   scale_x_continuous(breaks=c(1:15)) +
+  scale_y_continuous(limits = c(-0.27,-0.08), breaks=c(-0.1,-0.15,-0.2,-0.25)) +
   facet_wrap(~variable) + 
   th + theme(axis.title = element_blank())
 
-
+ggsave(plot = p1, filename = "GENERATE/FAVAR1.pdf", width = 24, height = 4, units = "cm", dpi = 320)
 
 # Factor loadings ---------------------------------------------------------
 # 
@@ -232,7 +233,7 @@ m
 
 # Plot of stationary variables --------------------------------------------
 
-variables %>% 
+p2 <- variables %>% 
   mutate(Date = FAVAR_T[,1]) %>% 
   gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + 
@@ -240,7 +241,7 @@ variables %>%
   facet_wrap(~variable, nrow=7, scales = "free") +
   th + theme(axis.title = element_blank())
 
-
+ggsave(plot = p2, filename = "GENERATE/FAVAR2.pdf", width = 24, height = 24, units = "cm", dpi = 320)
 
 
 
@@ -301,9 +302,9 @@ df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper =
             tibble(IRF = p8$irf$FFR[,1],    Lower = p8$Lower$FFR[,1],    Upper = p8$Upper$FFR[,1],    N = c(0:48), type = "8 Faktorere")) %>% 
   gather(variable, value, -type, -N)
 
-df %>% ggplot(aes(N, value, linetype = variable)) +
+p3 <- df %>% ggplot(aes(N, value, linetype = variable)) +
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line(size = 0.4) +
+  geom_line(size = 0.3) +
   facet_wrap(~type, nrow = 1) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
@@ -311,47 +312,45 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
   labs(x = "Lags", linetype = "") +
   th + theme(axis.title.y = element_blank(), legend.position = "none")
 
-
+ggsave(plot = p3, filename = "GENERATE/FAVAR3.pdf", width = 30, height = 6, units = "cm", dpi = 320)
 
 # IRF ---------------------------------------------------------------------
-# 
-# data <- irf(m, n.ahead = 49, cumulative = F)
-# variables <- data$irf %>% names
-# 
-# ir <- lapply(1:length(variables), function(e){
-#   data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
-#     mutate("t" = 1:NROW(.)) %>%
-#     gather(.,Variable, Value, -t)
-#   
-#   upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
-#     mutate("t" = 1:NROW(.)) %>%
-#     gather(.,Variable, Upper, -t)
-#   
-#   lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
-#     mutate("t" = 1:NROW(.)) %>%
-#     gather(.,Variable, Lower, -t)
-#   
-#   res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
-#     inner_join(.,lower_ci, c("t","Variable")) %>%
-#     mutate(impulse = paste("Shock to", variables[e])) 
-# }) %>% bind_rows
-# 
-# ir$t <- ir$t-1
-# 
-# ggplot(ir, aes(x = t, y = Value, group = Variable))  +
-#   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-#   geom_line(size = 0.4) +
-#   geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
-#   geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
-#   scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 4)) +
-#   #scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(0,0.1,0.2,0.3,0.4,0.5)) +
-#   facet_grid(Variable ~ impulse, switch = "y", scales = "free") +
-#   labs(title=expression(paste(bold("Figure 4.1 "), " Impulse Response Functions")), 
-#        subtitle="Note: 95% Confidence intervals by bootstrap, 100 runs", 
-#        caption="Source: FRED + Egne beregninger") +
-#   th
-# 
-
+ 
+ data <- irf(m, n.ahead = 49, cumulative = F, ci=0.66)
+ variables <- data$irf %>% names
+ 
+ ir <- lapply(1:length(variables), function(e){
+   data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
+     mutate("t" = 1:NROW(.)) %>%
+     gather(.,Variable, Value, -t)
+   
+   upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
+     mutate("t" = 1:NROW(.)) %>%
+     gather(.,Variable, Upper, -t)
+   
+   lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
+     mutate("t" = 1:NROW(.)) %>%
+     gather(.,Variable, Lower, -t)
+   
+   res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
+     inner_join(.,lower_ci, c("t","Variable")) %>%
+     mutate(impulse = paste("Shock to", variables[e])) 
+ }) %>% bind_rows
+ 
+ ir$t <- ir$t-1
+ 
+p8 <- ggplot(ir, aes(x = t, y = Value, group = Variable))  +
+   geom_hline(aes(yintercept=0),linetype="solid", color="grey") +
+   geom_line(size = 0.3) +
+   geom_line(aes(x = t, y = Upper), linetype = "dotted", size = 0.3) +
+   geom_line(aes(x = t, y = Lower), linetype = "dotted", size = 0.3) +
+   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
+   scale_y_continuous(position = "right", limits = c(-1,2), breaks = c(-0.3,-0.15,0,0.15,0.3)) +
+   facet_grid(Variable ~ impulse, switch = "y") +
+   coord_cartesian(ylim = c(-0.35, 0.35)) +
+   th + theme(axis.title.y = element_blank())
+ 
+ggsave(plot = p8, filename = "GENERATE/FAVAR8.pdf", width = 30, height = 20, units = "cm", dpi = 320)
 
 
 
@@ -376,12 +375,13 @@ colnames(ttt) <- c("Date",
                    "8. M2SL\nM2 Money Stock"
 )
 
-ttt %>% gather(variable, value, -Date) %>% 
+p4 <- ttt %>% gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + 
-  geom_line(size=0.4) + 
+  geom_line(size=0.3) + 
   facet_wrap(~variable, scale="free", nrow = 2) + 
   th  + theme(axis.title=element_blank())
 
+ggsave(plot = p4, filename = "GENERATE/FAVAR4.pdf", width = 30, height = 10, units = "cm", dpi = 320)
 
 # Summary statistics ------------------------------------------------------
 # 
@@ -426,7 +426,7 @@ low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>%
   mutate(N = 1:49) %>% 
   gather(variable, value, -N)
 
-val %>% 
+p5 <- val %>% 
   full_join(.,upp, by=c("N", "variable")) %>% 
   full_join(., low, by=c("N", "variable")) %>%
   filter(variable %in% TOP) %>% 
@@ -438,14 +438,14 @@ val %>%
   mutate(variable = factor(variable, levels=TOP)) %>% 
   ggplot(aes(N, value2, linetype=type)) + 
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line(size=0.4) +
+  geom_line(size=0.3) +
   geom_blank(aes(value2=-value2)) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
   scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
   facet_wrap(~variable, scales = "free", nrow=2) + 
   th  + theme(axis.title.y = element_blank(), legend.position = "none")
 
-
+ggsave(plot = p5, filename = "GENERATE/FAVAR5.pdf", width = 30, height = 10, units = "cm", dpi = 320)
 
 # Correlation matrix ------------------------------------------------------
 # 
@@ -477,6 +477,11 @@ val %>%
 
 
 # Forcasting --------------------------------------------------------------
+variables <- tibble(INFL =INFL$Value[-c(1,2)], 
+                    FFR = FFR$Value[-c(1,2)])
+variables <- cbind(FAVAR_T[c("Date")], variables, FAVAR_PCA$x)
+
+
 
 raw_var <- FAVAR_T[,-1]
 
@@ -596,13 +601,14 @@ temp <- fcst %>%
 
 tempbg <- temp %>% rename("new"="variable")
 
-temp %>% 
+p6 <- temp %>% 
   ggplot(aes(date, value)) + 
-  geom_line(data=tempbg, aes(group=new),color="grey") + 
-  geom_line() + 
+  geom_line(data=tempbg, aes(group=new), alpha = 0.1, size = 0.3) + 
+  geom_line(size = 0.3) + 
   #geom_line(data=INFL[-c(1:550),], aes(Date, Value)) +
   facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank())
 
+ggsave(plot = p6, filename = "GENERATE/FAVAR6.pdf", width = 24, height = 10, units = "cm", dpi = 320)
  
  temp <- fcstErr %>% 
    as_tibble %>% 
@@ -624,13 +630,13 @@ temp %>%
 #        y = expression(epsilon[t+1*"|"*t]~"="~y[t+1]~"-"~f[t+1*"|"*t]))
 
 
-temp %>% 
+p7 <- temp %>% 
   ggplot(aes(date, abs(value))) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=0, ymax=abs(value)), alpha=0.3) +
+  geom_line(size = 0.3) + 
+  geom_ribbon(aes(ymin=0, ymax=abs(value)), alpha = 0.1) +
   facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank())
 
-
+ggsave(plot = p7, filename = "GENERATE/FAVAR7.pdf", width = 24, height = 10, units = "cm", dpi = 320)
 
 
 

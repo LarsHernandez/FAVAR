@@ -71,17 +71,19 @@ rbind(adf.test(pp$FFR),    adf.test(pp$INFL),   adf.test(pp$PROD))
 
 pp$type <- "Transformeret"
 
-tibble(Date = FFR$Date, FFR = FFR$Value, INFL = CPI$Value, PROD = PROD$Value) %>% 
+p1 <- tibble(Date = FFR$Date, FFR = FFR$Value, INFL = CPI$Value, PROD = PROD$Value) %>% 
   mutate(type = "Utransformeret") %>% 
   rbind(.,pp) %>% 
   mutate(type = factor(.$type, levels= c("Utransformeret", "Transformeret"))) %>% 
   gather(variable, value, -Date, -type) %>% 
   ggplot(aes(Date, value)) + 
-  geom_line(size = 0.4) + 
+  geom_line(size = 0.3) + 
   facet_grid(type~variable, scale="free") +
   labs(x = "", y = "") +
   th + theme(axis.title=element_blank())
 
+
+ggsave(plot = p1, filename = "GENERATE/VAR1.pdf", width = 24, height = 8, units = "cm", dpi = 320)
 
 # VAR(1) model ------------------------------------------------------------
 
@@ -124,18 +126,18 @@ ir$t <- ir$t-1
 ir$Variable <- fct_relevel(ir$Variable, "INFL", "PROD")
 ir$impulse <- fct_relevel(ir$impulse, "Shock to INFL", "Shock to PROD")
 
-ggplot(ir, aes(x = t, y = Value, group = Variable))  +
+p2 <- ggplot(ir, aes(x = t, y = Value, group = Variable))  +
   geom_hline(aes(yintercept=0),linetype="solid", color="grey") +
-  geom_line(size = 0.4) +
-  geom_line(aes(x = t, y = Upper), linetype = "dotted") +
-  geom_line(aes(x = t, y = Lower), linetype = "dotted") +
+  geom_line(size = 0.3) +
+  geom_line(aes(x = t, y = Upper), linetype = "dotted", size = 0.3) +
+  geom_line(aes(x = t, y = Lower), linetype = "dotted", size = 0.3) +
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
   scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(-0.1,-0.05,0,0.05,0.10,0.15)) +
   facet_grid(Variable ~ impulse, switch = "y") +
   coord_cartesian(ylim = c(-0.1, 0.15)) +
   th
 
-
+ggsave(plot = p2, filename = "GENERATE/VAR2.pdf", width = 24, height = 14, units = "cm", dpi = 320)
 
 # Variance decomposition --------------------------------------------------
 # 
@@ -185,21 +187,21 @@ df2 <- tibble(R1 = as.vector(or1$Lower$FFR),
               N  = c(0:48),
               inte = "Lower") %>% gather(variable, Change, -N, -inte)
 
-rbind(df,df1,df2) %>% 
+p3 <- rbind(df,df1,df2) %>% 
   group_by(variable, inte) %>% 
   mutate(Accumulated = cumsum(Change)) %>% 
   gather(type, value, -N, -variable, -inte) %>% 
   ggplot(aes(N, value, color = variable, linetype=inte)) + 
   facet_wrap(~type, scales = "free") +
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line(size = 0.4) + 
+  geom_line(size = 0.3) + 
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_color_manual(values = c("black","black","black","black","black","black","black")) +
   scale_x_continuous(breaks = seq(0,48, by = 6), limits = c(0, 48)) +
   labs(linetype = "Order", y = "", x = "Lags (months)") +
   th + theme(axis.title.y=element_blank(), legend.position = "none")
 
-
+ggsave(plot = p3, filename = "GENERATE/VAR3.pdf", width = 24, height = 6, units = "cm", dpi = 320)
 
 
 
@@ -227,18 +229,18 @@ df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],   
 
 df$type <- factor(df$type, levels = c("Martin\n1951 - 1970", "Burns\n1970 - 1978", "Volcker\n1979 - 1987","Greenspan\n1987 - 2006","Bernanke\n2006 - 2014","Yellen\n2014 - 2018"))
 
-df %>% ggplot(aes(N, value, linetype = variable)) +  
+p4 <- df %>% ggplot(aes(N, value, linetype = variable)) +  
   geom_hline(aes(yintercept = 0), size = 0.5, color="grey") +
-  geom_line()+
+  geom_line(size = 0.3)+
   facet_wrap(~type) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_y_continuous(breaks = c(0.10,0.05,0,-0.05,-0.10), limits = c(-0.19, 0.19)) +
-  scale_x_continuous("Lags", limits = c(0,24), breaks = seq(0, 24, 4)) +
+  scale_x_continuous("Lags (months)", limits = c(0,24), breaks = seq(0, 24, 4)) +
   coord_cartesian(ylim = c(-0.12, 0.12)) +
   labs(y="", x="Lags (months)", linetype = "") +
   th + theme(axis.title.y=element_blank(), legend.position = "none")
 
-
+ggsave(plot = p4, filename = "GENERATE/VAR4.pdf", width = 24, height = 12, units = "cm", dpi = 320)
 
 
 

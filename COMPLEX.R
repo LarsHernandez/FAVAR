@@ -25,7 +25,7 @@ th <- theme(plot.title        = element_text(size = 20),
             axis.ticks        = element_line(color = "black"),
             plot.margin       = unit(c(0.2, 0.1, 0.2, 0.1), "cm"))
 
-# Data 1959-2019--------------------------------------------------------------------
+# Data 1959-2019 ----------------------------------------------------------
 FFR <- Quandl("FRED/FEDFUNDS", api_key = key) %>% 
   filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
   arrange(Date) %>% 
@@ -67,10 +67,29 @@ gap <- PROD %>%
 
 GAP <- data.frame(Value = as.numeric(gap$cycle))
 
-SHA <- Quandl("SHADOWS/US") %>% 
+SHA <- Quandl("SHADOWS/US", api_key = key) %>% 
   filter(Date >= "2000-01-01", Date < "2016-01-01") %>% 
   arrange(Date) %>% 
   dplyr::select(`Policy Rate`)
+
+
+
+# Plot --------------------------------------------------------------------
+
+p1 <- data.frame(DOW     = DOW$Value[-1], 
+                 GAP     = GAP$Value[-1], 
+                 SPREAD  = SPREAD$Value, 
+                 COM     = COM$Value[-1],
+                 Date    = seq(as.Date("1959-02-01"), by = "month", length.out = 719)) %>% 
+  gather(variable, value, -Date) %>% 
+  ggplot(aes(Date,value)) + 
+  geom_line(size = 0.3) + 
+  facet_wrap(~variable, nrow = 1, scales = "free") + 
+  scale_x_date(limits = as.Date(c('1960-01-01','2022-01-01'))) +
+  th  + theme(axis.title = element_blank())
+
+ggsave(plot = p1, filename = "GENERATE/COMP1.pdf", width = 24, height = 6, units = "cm", dpi = 320)
+
 
 
 
@@ -118,75 +137,84 @@ irf4 <- irf(V4, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.
 
 # Plot af modeller --------------------------------------------------------
 
-p0 <- rbind(irf0$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
+d0 <- rbind(irf0$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
       irf0$Upper$FFR %>% as_tibble %>% mutate(type = "upper", N = 1:49),
       irf0$Lower$FFR %>% as_tibble %>% mutate(type = "lower", N = 1:49)) %>% as_tibble %>% mutate(model = "Benchmark Model")
 
 
-p1 <- rbind(irf1$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
+d1 <- rbind(irf1$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
             irf1$Upper$FFR %>% as_tibble %>% mutate(type = "upper", N = 1:49),
             irf1$Lower$FFR %>% as_tibble %>% mutate(type = "lower", N = 1:49)) %>% as_tibble %>% mutate(model = "Commoditie Prices")
 
 
-rbind(p1,p0) %>% 
+p2 <- rbind(d1,d0) %>% 
   ggplot(aes(N, CPI, linetype=type)) + 
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line() + 
+  geom_line(size = 0.3) + 
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_y_continuous(limits=c(-0.02,0.06)) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
   facet_wrap(~model) + 
   th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+ggsave(plot = p2, filename = "GENERATE/COMP2.pdf", width = 24, height = 6, units = "cm", dpi = 320)
 
 
-p2 <- rbind(irf2$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
+
+d2 <- rbind(irf2$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
             irf2$Upper$FFR %>% as_tibble %>% mutate(type = "upper", N = 1:49),
             irf2$Lower$FFR %>% as_tibble %>% mutate(type = "lower", N = 1:49)) %>% as_tibble %>% mutate(model = "Dow Jones")
 
 
-rbind(p2,p0) %>% 
+p3 <- rbind(d2,d0) %>% 
   ggplot(aes(N, CPI, linetype=type)) + 
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line() + 
+  geom_line(size = 0.3) + 
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_y_continuous(limits=c(-0.02,0.06)) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
   facet_wrap(~model) + 
   th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+ggsave(plot = p3, filename = "GENERATE/COMP3.pdf", width = 24, height = 6, units = "cm", dpi = 320)
 
 
-p3 <- rbind(irf3$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
+
+d3 <- rbind(irf3$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
             irf3$Upper$FFR %>% as_tibble %>% mutate(type = "upper", N = 1:49),
             irf3$Lower$FFR %>% as_tibble %>% mutate(type = "lower", N = 1:49)) %>% as_tibble %>% mutate(model = "Output Gap")
 
 
-rbind(p3,p0) %>% 
+p4 <- rbind(d3,d0) %>% 
   ggplot(aes(N, CPI, linetype=type)) + 
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line() + 
+  geom_line(size = 0.3) + 
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_y_continuous(limits=c(-0.02,0.06)) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
   facet_wrap(~model) + 
   th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+ggsave(plot = p4, filename = "GENERATE/COMP4.pdf", width = 24, height = 6, units = "cm", dpi = 320)
 
-p4 <- rbind(irf4$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
+
+
+d4 <- rbind(irf4$irf$FFR   %>% as_tibble %>% mutate(type = "irf", N = 1:49),
             irf4$Upper$FFR %>% as_tibble %>% mutate(type = "upper", N = 1:49),
             irf4$Lower$FFR %>% as_tibble %>% mutate(type = "lower", N = 1:49)) %>% as_tibble %>% mutate(model = "Yield Curve Spread")
 
 
-rbind(p4,p0) %>% 
+p5 <- rbind(d4,d0) %>% 
   ggplot(aes(N, CPI, linetype=type)) + 
   geom_hline(aes(yintercept = 0), color="grey") +
-  geom_line() + 
+  geom_line(size = 0.3) + 
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_y_continuous(limits=c(-0.02,0.06)) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
   facet_wrap(~model) + 
   th + theme(axis.title.y = element_blank(), legend.position = "none")
+
+ggsave(plot = p5, filename = "GENERATE/COMP5.pdf", width = 24, height = 6, units = "cm", dpi = 320)
 
 
 
@@ -236,13 +264,17 @@ SHA2a <- SHA2 %>% as_tibble %>% mutate(type="SHA", n=seq(from=as.Date("2000-01-0
 FFR2a <- FFR2 %>% as_tibble %>% mutate(type="FFR", n=seq(from=as.Date("2000-01-01"), to =as.Date("2015-11-01"), by="months"))
 negativ <- rbind(FFR2a,SHA2a)
 
-negativ %>% 
+p6 <- negativ %>% 
   as_tibble %>% 
   ggplot(aes(n, value, linetype=type)) + 
-  geom_line() + 
+  geom_line(size = 0.3) + 
   geom_hline(aes(yintercept=0),linetype="solid", color="grey") + 
   scale_linetype_manual(labels=c("Federal Funds\nRate", "Shaddow Rate"), values=c("solid", "dotted"), name="Type") +
   th + theme(axis.title = element_blank())
+
+ggsave(plot = p6, filename = "GENERATE/COMP6.pdf", width = 24, height = 6, units = "cm", dpi = 320)
+
+
 
 irf_FFR1 <- irf_FFR$irf$dFFR
 irf_FFR2 <- irf_FFR$Lower$dFFR
@@ -261,10 +293,65 @@ samligning2 <- samligning_SHA %>% gather(variable, value, -type)
 
 samligning <- rbind(samligning_FFR,samligning_SHA)
 
-samligning %>% gather(variable, value, -type, -n) %>% 
-  ggplot(aes(n, value, linetype=variable))+ 
+p7 <- samligning %>% gather(variable, value, -type, -n) %>% 
+  ggplot(aes(n-1, value, linetype=variable))+ 
   geom_hline(aes(yintercept=0), linetype="solid", color="grey") + 
-  geom_line(size=0.6, show.legend = FALSE) + 
+  geom_line(size=0.3, show.legend = FALSE) + 
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,24), breaks = seq(0, 24, 2)) +
   facet_wrap(~type) + 
   th  + theme(axis.title = element_blank())
+
+ggsave(plot = p7, filename = "GENERATE/COMP7.pdf", width = 24, height = 6, units = "cm", dpi = 320)
+
+
+
+
+
+# IRF total ---------------------------------------------------------------
+
+data <- irf(V4, n.ahead = 49, cumulative = F, ci = 0.66)
+variables <- data$irf %>% names
+
+ir <- lapply(1:length(variables), function(e){
+  data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
+    mutate("t" = 1:NROW(.)) %>%
+    gather(.,Variable, Value, -t)
+  
+  upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
+    mutate("t" = 1:NROW(.)) %>%
+    gather(.,Variable, Upper, -t)
+  
+  lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
+    mutate("t" = 1:NROW(.)) %>%
+    gather(.,Variable, Lower, -t)
+  
+  res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
+    inner_join(.,lower_ci, c("t","Variable")) %>%
+    mutate(impulse = paste("Shock to", variables[e])) 
+}) %>% bind_rows
+
+ir$t <- ir$t-1
+
+ir$Variable <- fct_relevel(ir$Variable, "INFL", "PROD")
+ir$impulse <- fct_relevel(ir$impulse, "Shock to INFL", "Shock to PROD")
+
+p8 <- ggplot(ir, aes(x = t, y = Value, group = Variable))  +
+  geom_hline(aes(yintercept=0),linetype="solid", color="grey") +
+  geom_line(size = 0.3) +
+  geom_line(aes(x = t, y = Upper), linetype = "dotted", size = 0.3) +
+  geom_line(aes(x = t, y = Lower), linetype = "dotted", size = 0.3) +
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
+  scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(-0.06,0,0.06,0.12)) +
+  facet_grid(Variable ~ impulse, switch = "y") +
+  coord_cartesian(ylim = c(-0.08, 0.14)) +
+  th
+
+ggsave(plot = p8, filename = "GENERATE/COMP8.pdf", width = 24, height = 14, units = "cm", dpi = 320)
+
+
+
+
+
+
+

@@ -17,6 +17,7 @@ library(xtable)
 library(RColorBrewer)
 library(vars)
 library(lubridate)
+library(nowcasting)
 
 key <- "WB3WH-RUprDSyH2xaLbu"
 
@@ -152,6 +153,11 @@ INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>%
   arrange(Date) %>% 
   mutate(Value = c(NA, diff(log(Value))*100))
 
+PROD <- Quandl("FRED/INDPRO", api_key = key) %>% 
+  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  arrange(Date) %>% 
+  mutate(Value = c(NA, diff(log(Value))*100))
+
 
 variables <- tibble(INFL =INFL$Value[-c(1,2)], 
                     FFR = FFR$Value[-c(1,2)])
@@ -170,57 +176,57 @@ m
 
 
 # Persp plot ---------------------------------------------------------------
-
-n.columns <- 598 # 718m - 72m  Time difference of 45.32564 mins
-irff <- matrix(nrow = 44, ncol = n.columns)
-
-start_time <- Sys.time()
-for (i in 1:n.columns) {
-  result <- variables %>% 
-    filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(120 + i)) %>% 
-    dplyr::select(-Date) %>% VAR(p = 13)
-  irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 43)$irf$FFR
-}
-end_time <- Sys.time()
-end_time - start_time
-
-
-
-x <- c(1:44)
-y <- seq(1970, 2019, length.out = 598)
-z <- irff
-
-# Create a function interpolating colors in the range of specified colors
-jet.colors <- colorRampPalette(brewer.pal(9,"YlGnBu"))
-
-# Generate the desired number of colors from this palette
-nbcol <- 100
-color <- jet.colors(nbcol)
-
-# Compute the z-value at the facet centres
-zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)])/4
-
-# Recode facet z-values into color indices
-facetcol <- cut(zfacet, nbcol)
-
-a <- persp(x, y, z, col = color[facetcol],
-           zlim = c(-0.10, 0.15),
-           xlab = "Months", ylab = "", zlab = "%",
-           theta = 40, phi = 30, expand = 0.45,
-           ticktype = "detailed", lwd = 0.1)
-
-text(trans3d(0, 1970.0, 0.145, a), "Burns",     col = "black")
-text(trans3d(0, 1979.8, 0.145, a), "Volcker",   col = "black")
-text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
-text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
-text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
-
-lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
-lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
-
+# 
+# n.columns <- 598 # 718m - 72m  Time difference of 45.32564 mins
+# irff <- matrix(nrow = 44, ncol = n.columns)
+# 
+# start_time <- Sys.time()
+# for (i in 1:n.columns) {
+#   result <- variables %>% 
+#     filter(Date > as.Date("1960-02-01") %m+% months(i) & Date < as.Date("1960-02-01") %m+% months(120 + i)) %>% 
+#     dplyr::select(-Date) %>% VAR(p = 13)
+#   irff[,i] <- irf(result, impulse = "FFR", response = "INFL", n.ahead = 43)$irf$FFR
+# }
+# end_time <- Sys.time()
+# end_time - start_time
+# 
+# 
+# 
+# x <- c(1:44)
+# y <- seq(1970, 2019, length.out = 598)
+# z <- irff
+# 
+# # Create a function interpolating colors in the range of specified colors
+# jet.colors <- colorRampPalette(brewer.pal(9,"YlGnBu"))
+# 
+# # Generate the desired number of colors from this palette
+# nbcol <- 100
+# color <- jet.colors(nbcol)
+# 
+# # Compute the z-value at the facet centres
+# zfacet <- (z[-1, -1] + z[-1, -ncol(z)] + z[-nrow(z), -1] + z[-nrow(z), -ncol(z)])/4
+# 
+# # Recode facet z-values into color indices
+# facetcol <- cut(zfacet, nbcol)
+# 
+# a <- persp(x, y, z, col = color[facetcol],
+#            zlim = c(-0.10, 0.15),
+#            xlab = "Months", ylab = "", zlab = "%",
+#            theta = 40, phi = 30, expand = 0.45,
+#            ticktype = "detailed", lwd = 0.1)
+# 
+# text(trans3d(0, 1970.0, 0.145, a), "Burns",     col = "black")
+# text(trans3d(0, 1979.8, 0.145, a), "Volcker",   col = "black")
+# text(trans3d(0, 1987.8, 0.145, a), "Greenspan", col = "black")
+# text(trans3d(0, 2006.0, 0.145, a), "Bernanke",  col = "black")
+# text(trans3d(0, 2014.0, 0.145, a), "Yellen",    col = "black")
+# 
+# lines(trans3d(x = 0, y = 1970, z = c(0.13,-0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+# lines(trans3d(x = 0, y = 1979, z = c(0.13, 0.045), pmat = a), lwd = 0.2, lty = 2,  col = "black")
+# lines(trans3d(x = 0, y = 1987, z = c(0.13, 0.05),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+# lines(trans3d(x = 0, y = 2006, z = c(0.13, 0.01),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+# lines(trans3d(x = 0, y = 2014, z = c(0.13, 0.04),  pmat = a), lwd = 0.2, lty = 2,  col = "black")
+# 
 
 
 
@@ -245,36 +251,36 @@ variables %>%
 
 
 # Structural shifts -------------------------------------------------------
-
-Martin    <- variables %>% filter(Date > "1951-01-01", Date < "1970-02-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Burns     <- variables %>% filter(Date > "1970-02-01", Date < "1979-08-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Volcker   <- variables %>% filter(Date > "1979-08-01", Date < "1987-08-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Greenspan <- variables %>% filter(Date > "1987-08-01", Date < "2006-01-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Bernanke  <- variables %>% filter(Date > "2006-01-01", Date < "2014-01-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-Yellen    <- variables %>% filter(Date > "2014-01-01", Date < "2018-02-01") %>% dplyr::select(-Date) %>% VAR(p = 3) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
-
-
-
-df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],    Upper = Martin$Upper$FFR[,1],    N = c(0:24), type = "Martin\n1951 - 1970"),
-            tibble(IRF = Burns$irf$FFR[,1],     Lower = Burns$Lower$FFR[,1],     Upper = Burns$Upper$FFR[,1],     N = c(0:24), type = "Burns\n1970 - 1978"),
-            tibble(IRF = Volcker$irf$FFR[,1],   Lower = Volcker$Lower$FFR[,1],   Upper = Volcker$Upper$FFR[,1],   N = c(0:24), type = "Volcker\n1979 - 1987"),
-            tibble(IRF = Greenspan$irf$FFR[,1], Lower = Greenspan$Lower$FFR[,1], Upper = Greenspan$Upper$FFR[,1], N = c(0:24), type = "Greenspan\n1987 - 2006"),
-            tibble(IRF = Bernanke$irf$FFR[,1],  Lower = Bernanke$Lower$FFR[,1],  Upper = Bernanke$Upper$FFR[,1],  N = c(0:24), type = "Bernanke\n2006 - 2014"),
-            tibble(IRF = Yellen$irf$FFR[,1],    Lower = Yellen$Lower$FFR[,1],    Upper = Yellen$Upper$FFR[,1],    N = c(0:24), type = "Yellen\n2014 - 2018")) %>% 
-  gather(variable, value, -type, -N)
-
-df$type <- factor(df$type, levels = c("Martin\n1951 - 1970", "Burns\n1970 - 1978", "Volcker\n1979 - 1987","Greenspan\n1987 - 2006","Bernanke\n2006 - 2014","Yellen\n2014 - 2018"))
-
-df %>% ggplot(aes(N, value, linetype = variable)) +
-  geom_line()+
-  facet_wrap(~type) +
-  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
-  geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_y_continuous(limits=c(-0.14,0.24)) +
-  scale_x_continuous("Lags", limits = c(0,24), breaks = seq(0, 24, 4)) +
-  labs(title = expression(paste(bold("Figur 4.7  "), "Strukturelle skift 1960 - 2018 (INFL, PROD, FFR)")), 
-       color = "Procent", y = "", x = "Lags", caption = "Kilde: FRED + Egne beregninger", linetype = "") +
-  th
+# 
+# Martin    <- variables %>% filter(Date > "1951-01-01", Date < "1970-02-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+# Burns     <- variables %>% filter(Date > "1970-02-01", Date < "1979-08-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+# Volcker   <- variables %>% filter(Date > "1979-08-01", Date < "1987-08-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+# Greenspan <- variables %>% filter(Date > "1987-08-01", Date < "2006-01-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+# Bernanke  <- variables %>% filter(Date > "2006-01-01", Date < "2014-01-01") %>% dplyr::select(-Date) %>% VAR(p = 4) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+# Yellen    <- variables %>% filter(Date > "2014-01-01", Date < "2018-02-01") %>% dplyr::select(-Date) %>% VAR(p = 3) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 24)
+# 
+# 
+# 
+# df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],    Upper = Martin$Upper$FFR[,1],    N = c(0:24), type = "Martin\n1951 - 1970"),
+#             tibble(IRF = Burns$irf$FFR[,1],     Lower = Burns$Lower$FFR[,1],     Upper = Burns$Upper$FFR[,1],     N = c(0:24), type = "Burns\n1970 - 1978"),
+#             tibble(IRF = Volcker$irf$FFR[,1],   Lower = Volcker$Lower$FFR[,1],   Upper = Volcker$Upper$FFR[,1],   N = c(0:24), type = "Volcker\n1979 - 1987"),
+#             tibble(IRF = Greenspan$irf$FFR[,1], Lower = Greenspan$Lower$FFR[,1], Upper = Greenspan$Upper$FFR[,1], N = c(0:24), type = "Greenspan\n1987 - 2006"),
+#             tibble(IRF = Bernanke$irf$FFR[,1],  Lower = Bernanke$Lower$FFR[,1],  Upper = Bernanke$Upper$FFR[,1],  N = c(0:24), type = "Bernanke\n2006 - 2014"),
+#             tibble(IRF = Yellen$irf$FFR[,1],    Lower = Yellen$Lower$FFR[,1],    Upper = Yellen$Upper$FFR[,1],    N = c(0:24), type = "Yellen\n2014 - 2018")) %>% 
+#   gather(variable, value, -type, -N)
+# 
+# df$type <- factor(df$type, levels = c("Martin\n1951 - 1970", "Burns\n1970 - 1978", "Volcker\n1979 - 1987","Greenspan\n1987 - 2006","Bernanke\n2006 - 2014","Yellen\n2014 - 2018"))
+# 
+# df %>% ggplot(aes(N, value, linetype = variable)) +
+#   geom_hline(aes(yintercept = 0), color="grey") +
+#   geom_line()+
+#   facet_wrap(~type) +
+#   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+#   scale_y_continuous(limits=c(-0.14,0.24)) +
+#   scale_x_continuous("Lags", limits = c(0,24), breaks = seq(0, 24, 4)) +
+#   labs(title = expression(paste(bold("Figur 4.7  "), "Strukturelle skift 1960 - 2018 (INFL, PROD, FFR)")), 
+#        color = "Procent", y = "", x = "Lags", caption = "Kilde: FRED + Egne beregninger", linetype = "") +
+#   th
 
 
 
@@ -296,11 +302,11 @@ df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper =
   gather(variable, value, -type, -N)
 
 df %>% ggplot(aes(N, value, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
   geom_line(size = 0.4) +
   facet_wrap(~type, nrow = 1) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
-  geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 8)) +
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
   scale_y_continuous(limits = c(-0.03,0.08)) +
   labs(x = "Lags", linetype = "") +
   th + theme(axis.title.y = element_blank(), legend.position = "none")
@@ -308,43 +314,43 @@ df %>% ggplot(aes(N, value, linetype = variable)) +
 
 
 # IRF ---------------------------------------------------------------------
-
-data <- irf(m, n.ahead = 49, cumulative = F)
-variables <- data$irf %>% names
-
-ir <- lapply(1:length(variables), function(e){
-  data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
-    mutate("t" = 1:NROW(.)) %>%
-    gather(.,Variable, Value, -t)
-  
-  upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
-    mutate("t" = 1:NROW(.)) %>%
-    gather(.,Variable, Upper, -t)
-  
-  lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
-    mutate("t" = 1:NROW(.)) %>%
-    gather(.,Variable, Lower, -t)
-  
-  res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
-    inner_join(.,lower_ci, c("t","Variable")) %>%
-    mutate(impulse = paste("Shock to", variables[e])) 
-}) %>% bind_rows
-
-ir$t <- ir$t-1
-
-ggplot(ir, aes(x = t, y = Value, group = Variable))  +
-  geom_line(size = 0.4) +
-  geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
-  geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
-  geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
-  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 4)) +
-  #scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(0,0.1,0.2,0.3,0.4,0.5)) +
-  facet_grid(Variable ~ impulse, switch = "y", scales = "free") +
-  labs(title=expression(paste(bold("Figure 4.1 "), " Impulse Response Functions")), 
-       subtitle="Note: 95% Confidence intervals by bootstrap, 100 runs", 
-       caption="Source: FRED + Egne beregninger") +
-  th
-
+# 
+# data <- irf(m, n.ahead = 49, cumulative = F)
+# variables <- data$irf %>% names
+# 
+# ir <- lapply(1:length(variables), function(e){
+#   data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
+#     mutate("t" = 1:NROW(.)) %>%
+#     gather(.,Variable, Value, -t)
+#   
+#   upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
+#     mutate("t" = 1:NROW(.)) %>%
+#     gather(.,Variable, Upper, -t)
+#   
+#   lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
+#     mutate("t" = 1:NROW(.)) %>%
+#     gather(.,Variable, Lower, -t)
+#   
+#   res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
+#     inner_join(.,lower_ci, c("t","Variable")) %>%
+#     mutate(impulse = paste("Shock to", variables[e])) 
+# }) %>% bind_rows
+# 
+# ir$t <- ir$t-1
+# 
+# ggplot(ir, aes(x = t, y = Value, group = Variable))  +
+#   geom_hline(aes(yintercept = 0), size = 0.5, alpha = 0.5) +
+#   geom_line(size = 0.4) +
+#   geom_line(aes(x = t, y = Upper), linetype = "dashed", size = 0.2, alpha = 0.5) +
+#   geom_line(aes(x = t, y = Lower), linetype = "dashed", size = 0.2, alpha = 0.5) +
+#   scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 4)) +
+#   #scale_y_continuous("Percent\n ", position = "right", limits = c(-0.4,1), breaks = c(0,0.1,0.2,0.3,0.4,0.5)) +
+#   facet_grid(Variable ~ impulse, switch = "y", scales = "free") +
+#   labs(title=expression(paste(bold("Figure 4.1 "), " Impulse Response Functions")), 
+#        subtitle="Note: 95% Confidence intervals by bootstrap, 100 runs", 
+#        caption="Source: FRED + Egne beregninger") +
+#   th
+# 
 
 
 
@@ -378,12 +384,12 @@ ttt %>% gather(variable, value, -Date) %>%
 
 
 # Summary statistics ------------------------------------------------------
-
-stargazer(FAVAR, summary.stat = c("n", "mean", "sd", "min", "max"))
-res <- apply(FAVAR_S[,-1], FUN = function(x) auto.arima(x)$arma[6], MARGIN = 2)
-xtable(res)
-
-
+# 
+# stargazer(FAVAR, summary.stat = c("n", "mean", "sd", "min", "max"))
+# res <- apply(FAVAR_S[,-1], FUN = function(x) auto.arima(x)$arma[6], MARGIN = 2)
+# xtable(res)
+# 
+# 
 
 
 
@@ -397,7 +403,7 @@ xtable(res)
 
 # PCA reconstruction ------------------------------------------------------
 
-obj <- irf(m, impulse = "FFR", n.ahead = 48)
+obj <- irf(m, impulse = "FFR", n.ahead = 48, ci = 0.66)
 eigen <- FAVAR_PCA$rotation
 
 val <- obj[1]$irf$FFR[,-c(1,2)] %*% t(eigen) %>% 
@@ -431,37 +437,37 @@ val %>%
   ungroup() %>% 
   mutate(variable = factor(variable, levels=TOP)) %>% 
   ggplot(aes(N, value2, linetype=type)) + 
+  geom_hline(aes(yintercept = 0), color="grey") +
   geom_line(size=0.4) +
   geom_blank(aes(value2=-value2)) + 
-  scale_x_continuous("Lags", limits = c(0,48), breaks = seq(0, 48, 6)) +
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
   scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
-  geom_hline(aes(yintercept = 0), color="grey") + 
   facet_wrap(~variable, scales = "free", nrow=2) + 
   th  + theme(axis.title.y = element_blank(), legend.position = "none")
 
 
 
 # Correlation matrix ------------------------------------------------------
-
-vars <- FAVAR_T %>% dplyr::select(IPMANSICS,CUSR0000SAC,T10YFFM,GS5,UEMP15OV,HOUST,M2REAL,M2SL)
-fact <- FAVAR_PCA$x
-
-cor(vars,fact) %>% xtable()
-
-
+# 
+# vars <- FAVAR_T %>% dplyr::select(IPMANSICS,CUSR0000SAC,T10YFFM,GS5,UEMP15OV,HOUST,M2REAL,M2SL)
+# fact <- FAVAR_PCA$x
+# 
+# cor(vars,fact) %>% xtable()
+# 
+# 
 
 
 
 # FEVD - VARIABLES --------------------------------------------------------
-
-decomp <- fevd(m, n.ahead = 60)
-decomp$INFL[60,-c(1,2)] %*% t(eigen) %>% 
-  t() %>% 
-  as.tibble %>% 
-  mutate(name = rownames(eigen)) %>% 
-  arrange(desc(V1)) %>% 
-  xtable(digits = 4)
-
+# 
+# decomp <- fevd(m, n.ahead = 60)
+# decomp$INFL[60,-c(1,2)] %*% t(eigen) %>% 
+#   t() %>% 
+#   as.tibble %>% 
+#   mutate(name = rownames(eigen)) %>% 
+#   arrange(desc(V1)) %>% 
+#   xtable(digits = 4)
+# 
 
 
 
@@ -471,11 +477,6 @@ decomp$INFL[60,-c(1,2)] %*% t(eigen) %>%
 
 
 # Forcasting --------------------------------------------------------------
-
-PROD <- Quandl("FRED/INDPRO", api_key = key) %>% 
-  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
-  arrange(Date) %>% 
-  mutate(Value = c(NA, diff(log(Value))*100))
 
 raw_var <- FAVAR_T[,-1]
 
@@ -489,7 +490,7 @@ colnames(VAR.Data) <- c("PROD", "INFL", "FFR")
 
 set.seed(2019)
 init_p    <- 550
-nahead    <- 1
+nahead    <- 3
 noMods    <- 8
 end_p     <- nrow(Data.Frame) - nahead
 n_windows <- end_p - init_p 
@@ -600,8 +601,7 @@ temp %>%
   geom_line(data=tempbg, aes(group=new),color="grey") + 
   geom_line() + 
   #geom_line(data=INFL[-c(1:550),], aes(Date, Value)) +
-  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank()) + 
-  scale_x_continuous(breaks)
+  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank())
 
  
  temp <- fcstErr %>% 

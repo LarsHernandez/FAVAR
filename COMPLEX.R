@@ -119,8 +119,6 @@ irf2 <- irf(V2, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.
 irf3 <- irf(V3, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.ahead = 48, ci = 0.66)
 irf4 <- irf(V4, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.ahead = 48, ci = 0.66)
 
-plot(irf0,type="l")
-
 
 # Plot af modeller --------------------------------------------------------
 

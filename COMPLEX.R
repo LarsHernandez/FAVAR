@@ -55,10 +55,17 @@ bond <- Quandl("FED/SVENY", collapse = "m", api_key = key) %>%
 SPREAD <- data.frame(Value = c(rnorm(28, mean = 0.4,sd = 0.1),bond$SVENY05 - bond$SVENY02))
 
 DOW <- read_delim("//student.aau.dk/Users/lbni13/Desktop/DOW2.csv", ";", 
+DOW <- read_delim("//student.aau.dk/Users/aklitg15/Desktop/aktiepriser_eikon - grundmodel.csv", ";", 
                   escape_double = FALSE, locale = locale(decimal_mark = ","), 
                   trim_ws = TRUE) %>% 
   rename(Value = `US DOW JONES INDUSTRIALS SHARE PRICE INDEX (EP) NADJ`) %>% 
   dplyr::select(Value)
+
+#DOW <- read_delim("//student.aau.dk/Users/lbni13/Desktop/DOW2.csv", ";", 
+#                  escape_double = FALSE, locale = locale(decimal_mark = ","), 
+#                  trim_ws = TRUE) %>% 
+#  rename(Value = `US DOW JONES INDUSTRIALS SHARE PRICE INDEX (EP) NADJ`) %>% 
+#  dplyr::select(Value)
 
 gap <- PROD %>% 
   ts(start = 1959) %>% 
@@ -67,7 +74,11 @@ gap <- PROD %>%
 
 GAP <- data.frame(Value = as.numeric(gap$cycle))
 
+<<<<<<< HEAD
 SHA <- Quandl("SHADOWS/US", api_key = key) %>% 
+=======
+SHA <- Quandl("SHADOWS/US",api_key = key) %>% 
+>>>>>>> 1c467a254971076dae9b42b85f2767535dc9d920
   filter(Date >= "2000-01-01", Date < "2016-01-01") %>% 
   arrange(Date) %>% 
   dplyr::select(`Policy Rate`)

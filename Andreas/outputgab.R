@@ -24,6 +24,3 @@ plot(prod)
 
 cyc <- as.numeric(prod$cycle)
 cyc
-out <- output$Value
-plot(cyc, type="l")
-lines(out, type="l", lty=2)

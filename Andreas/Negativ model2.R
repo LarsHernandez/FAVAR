@@ -75,13 +75,15 @@ Data5 <- cbind(dCPI,dSPREAD,dPROD,dSHA) #Negativ model + Spread
 
 VARselect(Data, lag.max = 24)
 V <- VAR(Data, p=3)
-irf_FFR <- irf(V, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 24)
+irf_FFR <- irf(V, impulse = "dFFR", response = "dCPI", ortho = T, cumulative = F, n.ahead = 24, ci=0.66)
 plot(irf_FFR)
+Jens1 <- irf_FFR$irf
 
 VARselect(Data1, lag.max = 24)
 V1 <- VAR(Data1, p=3)
-irf_SHA <- irf(V1, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = F, n.ahead = 24)
+irf_SHA <- irf(V1, impulse = "dSHA", response = "dCPI", ortho = T, cumulative = F, n.ahead = 24,ci=0.66)
 plot(irf_SHA)
+Jens2 <- irf_SHA$irf
 
 VARselect(Data2, lag.max = 24)
 V2 <- VAR(Data2, p=3)

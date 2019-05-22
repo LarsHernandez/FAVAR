@@ -149,7 +149,7 @@ FFR <- Quandl("FRED/FEDFUNDS", api_key = key) %>%
   arrange(Date) %>% 
   mutate(Value = c(NA, diff(Value)))
 
-INFL <- Quandl("RATEINF/CPI_USA", api_key = key) %>% 
+INFL <- Quandl("FRED/CPIAUCSL", api_key = key) %>% 
   filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
   arrange(Date) %>% 
   mutate(Value = c(NA, diff(log(Value))*100))
@@ -237,7 +237,7 @@ p2 <- variables %>%
   mutate(Date = FAVAR_T[,1]) %>% 
   gather(variable, value, -Date) %>% 
   ggplot(aes(Date, value)) + 
-  geom_line(size=0.4) + 
+  geom_line(size=0.3) + 
   facet_wrap(~variable, nrow=7, scales = "free") +
   th + theme(axis.title = element_blank())
 
@@ -379,6 +379,7 @@ p4 <- ttt %>% gather(variable, value, -Date) %>%
   ggplot(aes(Date, value)) + 
   geom_line(size=0.3) + 
   facet_wrap(~variable, scale="free", nrow = 2) + 
+  scale_x_date(limits = as.Date(c('1960-01-01','2021-01-01'))) +
   th  + theme(axis.title=element_blank())
 
 ggsave(plot = p4, filename = "GENERATE/FAVAR4.pdf", width = 30, height = 10, units = "cm", dpi = 320)
@@ -505,7 +506,6 @@ fcst      <- xts(mat, order.by = index(Data.Frame[(nrow(Data.Frame) - n_windows)
 colnames(fcst) <- c("RW", "MM", "AR(1)", "ARMA(5,1)", "VAR(1)", "VAR(13)", "FAVAR(1)", "FAVAR(5)")
 
 for (i in 1:n_windows) { 
-  
   Data_set          <- raw_var[1:(i+init_p-1),]
   Fhat              <- xts(prcomp(Data_set, rank. = 5)$x, order.by = index(Data.Frame[1:(i+init_p-1)]))
   
@@ -513,7 +513,6 @@ for (i in 1:n_windows) {
   T_VAR             <- VAR.Data[1:(i + init_p - 1),]
   T_FAVAR           <- Data.Frame[1:(i + init_p - 1), 1:2] %>% merge.xts(Fhat)
 
-  
   M_RW             <- arima(T_BASE, order = c(0,1,0))
   M_MM             <- arima(T_BASE, order = c(0,0,0), include.mean = T)  
   M_AR             <- arima(T_BASE, order = c(1,0,0))  
@@ -560,6 +559,7 @@ for (z in 1:noMods){
 Bias = colMeans(fcstErr)*100
 MSE  = colMeans(fcstErr^2)
 MSFE = colMeans(sqrt(fcstErr^2))
+RMSE = sqrt(MSE)
 Sign = colMeans(fcst.sign)
 Std  = Sign
 
@@ -582,9 +582,9 @@ for (i in 1:8){
   }
 }
 
-ftab <- round(cbind(Std, Bias, MSE, MSFE, Sign, dm),4)
+ftab <- round(cbind(Std, Bias, MSE, RMSE, Sign, dm),4)
 ftab
-xtable(ftab)
+xtable(ftab, digits = 3)
 
 
 
@@ -594,47 +594,36 @@ fcst = fcst[-nrow(fcst),]
 fcstErr = fcstErr[-nrow(fcstErr),]
 colnames(fcst) <- colnames(fcstErr)
 
-temp <- fcst %>% 
+temp1 <- fcst %>% 
   as_tibble %>% 
   mutate(date = index(fcst)) %>% 
   gather(variable, value, -date) 
 
-tempbg <- temp %>% rename("new"="variable")
+tempbg <- temp1 %>% rename("new"="variable")
 
-p6 <- temp %>% 
+p6 <- temp1 %>% 
   ggplot(aes(date, value)) + 
   geom_line(data=tempbg, aes(group=new), alpha = 0.1, size = 0.3) + 
   geom_line(size = 0.3) + 
-  #geom_line(data=INFL[-c(1:550),], aes(Date, Value)) +
-  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank())
+  scale_x_date(date_breaks = "3 years", date_labels = "%Y") + 
+
+  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank()) + 
+  coord_cartesian(xlim = c(as.Date("2005-01-01"), as.Date("2019-04-01")))
 
 ggsave(plot = p6, filename = "GENERATE/FAVAR6.pdf", width = 24, height = 10, units = "cm", dpi = 320)
  
- temp <- fcstErr %>% 
+temp2 <- fcstErr %>% 
    as_tibble %>% 
    mutate(date = index(fcstErr)) %>% 
    gather(variable, value, -date) 
- 
-# tempbg <- temp %>% rename("new"="variable")
-# 
-# temp %>% 
-#   ggplot(aes(date, value)) + 
-#   geom_hline(aes(yintercept=0)) +
-#   geom_line(data=tempbg, aes(group=new),color="grey") + 
-#   geom_line() + 
-#   facet_wrap(~variable, nrow=2) +
-#   labs(title = "Forecast Errors", 
-#        subtitle = "Expanding window, 1-period ahead",
-#        color="Series",
-#        caption = "Rasmus M. Jensen",
-#        y = expression(epsilon[t+1*"|"*t]~"="~y[t+1]~"-"~f[t+1*"|"*t]))
 
-
-p7 <- temp %>% 
+p7 <- temp2 %>% 
   ggplot(aes(date, abs(value))) + 
   geom_line(size = 0.3) + 
   geom_ribbon(aes(ymin=0, ymax=abs(value)), alpha = 0.1) +
-  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank())
+  scale_x_date(date_breaks = "3 years", date_labels = "%Y") + 
+  facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank()) +
+  coord_cartesian(xlim = c(as.Date("2005-01-01"), as.Date("2019-04-01")))
 
 ggsave(plot = p7, filename = "GENERATE/FAVAR7.pdf", width = 24, height = 10, units = "cm", dpi = 320)
 
@@ -656,4 +645,87 @@ ggsave(plot = p7, filename = "GENERATE/FAVAR7.pdf", width = 24, height = 10, uni
 
 
 
+# PCA reconstruction ------------------------------------------------------
 
+obj <- irf(m, impulse = "FFR", n.ahead = 48, ci = 0.66)
+eigen <- FAVAR_PCA$rotation
+
+val <- obj[1]$irf$FFR[,-c(1,2)] %*% t(eigen) %>% 
+  cbind(.,obj[1]$irf$FFR[,c(1,2)]) %>% 
+  as.data.frame %>% 
+  mutate(N = 1:49) %>% 
+  gather(variable, value, -N)
+
+upp <- obj[2]$Lower$FFR[,-c(1,2)] %*% t(eigen) %>% 
+  cbind(.,obj[2]$Lower$FFR[,c(1,2)]) %>% 
+  as.data.frame %>% 
+  dplyr::select(-starts_with("X")) %>% 
+  mutate(N = 1:49) %>% 
+  gather(variable, value, -N)
+
+low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>% 
+  cbind(.,obj[3]$Upper$FFR[,c(1,2)]) %>% 
+  as.data.frame %>% 
+  dplyr::select(-starts_with("X")) %>% 
+  mutate(N = 1:49) %>% 
+  gather(variable, value, -N)
+
+p9 <- val %>% 
+  full_join(.,upp, by=c("N", "variable")) %>% 
+  full_join(., low, by=c("N", "variable")) %>%
+  filter(variable %in% unique(val$variable)[1:48]) %>% 
+  gather(type, value, -variable,-N) %>% 
+  ggplot(aes(N, value, linetype=type)) + 
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size=0.3) +
+  geom_blank(aes(value=-value)) + 
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
+  scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
+  facet_wrap(~variable, scales = "free", nrow=8) + 
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
+
+ggsave(plot = p9, filename = "GENERATE/FAVAR9.pdf", width = 30, height = 42.4, units = "cm", dpi = 320)
+
+p10 <- val %>% 
+  full_join(.,upp, by=c("N", "variable")) %>% 
+  full_join(., low, by=c("N", "variable")) %>%
+  filter(variable %in% unique(val$variable)[49:96]) %>% 
+  gather(type, value, -variable,-N) %>% 
+  ggplot(aes(N, value, linetype=type)) + 
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size=0.3) +
+  geom_blank(aes(value=-value)) + 
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
+  scale_linetype_manual(values = c("dotted", "solid", "dotted")) + 
+  facet_wrap(~variable, scales = "free", nrow=8) + 
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
+  
+ggsave(plot = p10, filename = "GENERATE/FAVAR10.pdf", width = 30, height = 42.4, units = "cm", dpi = 320)
+
+
+
+
+
+# Interesting variables ---------------------------------------------------
+
+ttt <- FAVAR_S
+
+p11 <- ttt %>% gather(variable, value, -Date) %>% 
+  filter(variable %in% unique(variable)[1:48]) %>% 
+  ggplot(aes(Date, value)) + 
+  geom_line(size=0.3) + 
+  facet_wrap(~variable, scale="free", nrow = 8) + 
+  scale_x_date(limits = as.Date(c('1960-01-01','2021-01-01'))) +
+  th + theme(axis.title=element_blank())
+
+ggsave(plot = p11, filename = "GENERATE/FAVAR11.pdf", width = 30, height = 42.4, units = "cm", dpi = 320)
+
+p12 <- ttt %>% gather(variable, value, -Date) %>% 
+  filter(variable %in% unique(variable)[49:96]) %>% 
+  ggplot(aes(Date, value)) + 
+  geom_line(size=0.3) + 
+  facet_wrap(~variable, scale="free", nrow = 8) + 
+  scale_x_date(limits = as.Date(c('1960-01-01','2021-01-01'))) +
+  th + theme(axis.title=element_blank())
+
+ggsave(plot = p12, filename = "GENERATE/FAVAR12.pdf", width = 30, height = 42.4, units = "cm", dpi = 320)

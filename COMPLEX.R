@@ -55,7 +55,6 @@ bond <- Quandl("FED/SVENY", collapse = "m", api_key = key) %>%
 SPREAD <- data.frame(Value = c(rnorm(28, mean = 0.4,sd = 0.1),bond$SVENY05 - bond$SVENY02))
 
 DOW <- read_delim("//student.aau.dk/Users/lbni13/Desktop/DOW2.csv", ";", 
-DOW <- read_delim("//student.aau.dk/Users/aklitg15/Desktop/aktiepriser_eikon - grundmodel.csv", ";", 
                   escape_double = FALSE, locale = locale(decimal_mark = ","), 
                   trim_ws = TRUE) %>% 
   rename(Value = `US DOW JONES INDUSTRIALS SHARE PRICE INDEX (EP) NADJ`) %>% 
@@ -74,11 +73,8 @@ gap <- PROD %>%
 
 GAP <- data.frame(Value = as.numeric(gap$cycle))
 
-<<<<<<< HEAD
-SHA <- Quandl("SHADOWS/US", api_key = key) %>% 
-=======
+
 SHA <- Quandl("SHADOWS/US",api_key = key) %>% 
->>>>>>> 1c467a254971076dae9b42b85f2767535dc9d920
   filter(Date >= "2000-01-01", Date < "2016-01-01") %>% 
   arrange(Date) %>% 
   dplyr::select(`Policy Rate`)
@@ -96,7 +92,7 @@ p1 <- data.frame(DOW     = DOW$Value[-1],
   ggplot(aes(Date,value)) + 
   geom_line(size = 0.3) + 
   facet_wrap(~variable, nrow = 1, scales = "free") + 
-  scale_x_date(limits = as.Date(c('1960-01-01','2022-01-01'))) +
+  scale_x_date(limits = as.Date(c('1960-01-01','2021-01-01'))) +
   th  + theme(axis.title = element_blank())
 
 ggsave(plot = p1, filename = "GENERATE/COMP1.pdf", width = 24, height = 6, units = "cm", dpi = 320)
@@ -142,8 +138,6 @@ irf1 <- irf(V1, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.
 irf2 <- irf(V2, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.ahead = 48, ci = 0.66)
 irf3 <- irf(V3, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.ahead = 48, ci = 0.66)
 irf4 <- irf(V4, impulse = "FFR", response = "CPI", ortho = T, cumulative = F, n.ahead = 48, ci = 0.66)
-
-
 
 
 # Plot af modeller --------------------------------------------------------

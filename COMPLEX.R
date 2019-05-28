@@ -83,11 +83,11 @@ SHA <- Quandl("SHADOWS/US",api_key = key) %>%
 
 # Plot --------------------------------------------------------------------
 
-p1 <- data.frame(DOW     = DOW$Value[-1], 
-                 GAP     = GAP$Value[-1], 
-                 SPREAD  = SPREAD$Value, 
-                 COM     = COM$Value[-1],
-                 Date    = seq(as.Date("1959-02-01"), by = "month", length.out = 719)) %>% 
+p1 <- tibble("Dow Jones"     = DOW$Value[-1], 
+             "Output Gap"     = GAP$Value[-1], 
+             "ZCB Yield Spread 1yr - 5yr"  = SPREAD$Value, 
+             "Commodity Price Index"     = COM$Value[-1],
+             Date    = seq(as.Date("1959-02-01"), by = "month", length.out = 719)) %>% 
   gather(variable, value, -Date) %>% 
   ggplot(aes(Date,value)) + 
   geom_line(size = 0.3) + 

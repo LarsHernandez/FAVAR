@@ -55,7 +55,7 @@ PROD <- Quandl("FRED/INDPRO", api_key = key) %>%
 
 # Ordering 1. Inflation, 2. Output, 3. Federal Funds Rate 
 # Remember the first is most exogenious
-pp <- data.frame(Date = FFR$Date[-c(1)],
+pp <- data.frame(Date = FFR$Date[-1],
                  INFL = diff(log(CPI$Value))*100,
                  PROD = diff(log(PROD$Value))*100,
                  FFR  = diff(FFR$Value))
@@ -219,7 +219,7 @@ Yellen    <- pp %>% filter(Date > "2014-01-01", Date < "2018-02-01") %>% dplyr::
 
 
 
-df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],    Upper = Martin$Upper$FFR[,1],    N = c(0:24), type = "Martin\n1951 - 1970"),
+df <- rbind(tibble(IRF = Martin$irf$FFR[,1],    Lower = Martin$Lower$FFR[,1],    Upper = Martin$Upper$FFR[,1],    N = c(0:24), type = "Martin\n1959 - 1970"),
             tibble(IRF = Burns$irf$FFR[,1],     Lower = Burns$Lower$FFR[,1],     Upper = Burns$Upper$FFR[,1],     N = c(0:24), type = "Burns\n1970 - 1978"),
             tibble(IRF = Volcker$irf$FFR[,1],   Lower = Volcker$Lower$FFR[,1],   Upper = Volcker$Upper$FFR[,1],   N = c(0:24), type = "Volcker\n1979 - 1987"),
             tibble(IRF = Greenspan$irf$FFR[,1], Lower = Greenspan$Lower$FFR[,1], Upper = Greenspan$Upper$FFR[,1], N = c(0:24), type = "Greenspan\n1987 - 2006"),

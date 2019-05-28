@@ -192,10 +192,10 @@ m
 
 
 p0 <- variables %>% dplyr::select(INFL, FFR)                                         %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p1 <- variables %>% dplyr::select(INFL, FFR, PC1)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p1 <- variables %>% dplyr::select(INFL, PC1, FFR)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p3 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, FFR)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p5 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, PC4, PC5, FFR)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p8 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, FFR) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
 
 df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "0 Faktorere"),
             tibble(IRF = p1$irf$FFR[,1],    Lower = p1$Lower$FFR[,1],    Upper = p1$Upper$FFR[,1],    N = c(0:48), type = "1 Faktorere"),
@@ -217,10 +217,35 @@ p1 <- df %>% ggplot(aes(N, value, linetype = variable)) +
 ggsave(plot = p1, filename = "GENERATE/MC1.pdf", width = 30, height = 6, units = "cm", dpi = 320)
 
 
+p2 <- df %>% group_by(type, variable) %>% 
+  mutate(cum = cumsum(value)) %>% 
+  ungroup() %>% 
+  ggplot(aes(N, cum, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size = 0.3) +
+  facet_wrap(~type, nrow = 1) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+p3 <- df %>% group_by(type, variable) %>% 
+  mutate(cum = cumsum(value)) %>% 
+  ungroup() %>% 
+  ggplot(aes(N, cum, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size = 0.3) +
+  facet_wrap(~type, nrow = 1) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+pp <- grid.arrange(p13 + labs(title="Quandl data - 96 variable")+ theme(plot.title = element_text(size = 13)),
+             p2 + labs(title="McCracken data - 134 variable") + theme(plot.title = element_text(size = 13)),
+             nrow=2)
 
-
+ggsave(plot = pp, filename = "GENERATE/MCpp.pdf", width = 30, height = 12, units = "cm", dpi = 320)
 # Forcasting --------------------------------------------------------------
 fit.pca <- prcomp(yt_z, rank. = 5, scale. = T)
 
@@ -389,7 +414,17 @@ temp %>%
 
 
 
-
+df %>% group_by(type, variable) %>% 
+  mutate(cum = cumsum(value)) %>% 
+  ungroup() %>% 
+  ggplot(aes(N, cum, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size = 0.3) +
+  facet_wrap(~type, nrow = 1) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,148), breaks = seq(0, 48, 8)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
 
 
 

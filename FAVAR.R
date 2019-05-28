@@ -160,10 +160,10 @@ PROD <- Quandl("FRED/INDPRO", api_key = key) %>%
   mutate(Value = c(NA, diff(log(Value))*100))
 
 
-variables <- tibble(INFL =INFL$Value[-c(1,2)], 
-                    FFR = FFR$Value[-c(1,2)])
+v1 <- tibble(INFL =INFL$Value[-c(1,2)])
+v2 <- tibble(FFR = FFR$Value[-c(1,2)])
 
-variables <- cbind(FAVAR_T[c("Date")], variables, FAVAR_PCA$x)
+variables <- cbind(FAVAR_T[c("Date")], v1, FAVAR_PCA$x,v2)
 
 #VARselect(variables[,-1])
 
@@ -290,10 +290,10 @@ ggsave(plot = p2, filename = "GENERATE/FAVAR2.pdf", width = 24, height = 24, uni
 # Hvor mange faktorere ----------------------------------------------------
 
 p0 <- variables %>% dplyr::select(INFL, FFR)                                         %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p1 <- variables %>% dplyr::select(INFL, FFR, PC1)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p1 <- variables %>% dplyr::select(INFL, PC1, FFR)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p3 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, FFR)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p5 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, PC4, PC5, FFR)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p8 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, FFR) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
 
 df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "0 Faktorere"),
             tibble(IRF = p1$irf$FFR[,1],    Lower = p1$Lower$FFR[,1],    Upper = p1$Upper$FFR[,1],    N = c(0:48), type = "1 Faktorere"),
@@ -308,7 +308,7 @@ p3 <- df %>% ggplot(aes(N, value, linetype = variable)) +
   facet_wrap(~type, nrow = 1) +
   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
-  scale_y_continuous(limits = c(-0.03,0.08)) +
+  scale_y_continuous(limits = c(-0.04,0.08)) +
   labs(x = "Lags", linetype = "") +
   th + theme(axis.title.y = element_blank(), legend.position = "none")
 
@@ -333,10 +333,12 @@ ggsave(plot = p13, filename = "GENERATE/FAVAR13.pdf", width = 30, height = 6, un
 
 # IRF ---------------------------------------------------------------------
 
-va <- tibble(INFL = INFL$Value[-c(1,2)], 
-             FFR  = FFR$Value[-c(1,2)])
+va <- tibble(INFL = INFL$Value[-c(1,2)])
 
-va <- cbind(FAVAR_T[c("Date")], va, prcomp(FAVAR_T[,-1], rank. = 8)$x)
+va1 <- tibble(FFR  = FFR$Value[-c(1,2)])
+
+
+va <- cbind(FAVAR_T[c("Date")], va, prcomp(FAVAR_T[,-1], rank. = 8)$x, va1)
 m2 <- VAR(va[,-c(1)], p = 13)
 
  data <- irf(m2, n.ahead = 49, cumulative = F, ci = 0.66)
@@ -437,21 +439,21 @@ ggsave(plot = p4, filename = "GENERATE/FAVAR4.pdf", width = 30, height = 10, uni
 obj <- irf(m, impulse = "FFR", n.ahead = 48, ci = 0.66)
 eigen <- FAVAR_PCA$rotation
 
-val <- obj[1]$irf$FFR[,-c(1,2)] %*% t(eigen) %>% 
-  cbind(.,obj[1]$irf$FFR[,c(1,2)]) %>% 
+val <- obj[1]$irf$FFR[,-c(1,10)] %*% t(eigen) %>% 
+  cbind(.,obj[1]$irf$FFR[,c(1,10)]) %>% 
   as.data.frame %>% 
   mutate(N = 1:49) %>% 
   gather(variable, value, -N)
 
-upp <- obj[2]$Lower$FFR[,-c(1,2)] %*% t(eigen) %>% 
-  cbind(.,obj[2]$Lower$FFR[,c(1,2)]) %>% 
+upp <- obj[2]$Lower$FFR[,-c(1,10)] %*% t(eigen) %>% 
+  cbind(.,obj[2]$Lower$FFR[,c(1,10)]) %>% 
   as.data.frame %>% 
   dplyr::select(-starts_with("X")) %>% 
   mutate(N = 1:49) %>% 
   gather(variable, value, -N)
 
-low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>% 
-  cbind(.,obj[3]$Upper$FFR[,c(1,2)]) %>% 
+low <- obj[3]$Upper$FFR[,-c(1,10)] %*% t(eigen) %>% 
+  cbind(.,obj[3]$Upper$FFR[,c(1,10)]) %>% 
   as.data.frame %>% 
   dplyr::select(-starts_with("X")) %>% 
   mutate(N = 1:49) %>% 
@@ -539,7 +541,7 @@ n_windows <- end_p - init_p
 mat       <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
 fcst      <- xts(mat, order.by = index(Data.Frame[(nrow(Data.Frame) - n_windows):nrow(Data.Frame), ]))
 
-colnames(fcst) <- c("RW", "MM", "AR(1)", "ARMA(5,1)", "VAR(13)", "spVAR(13)", "FAVAR(1)", "FAVAR(5)")
+colnames(fcst) <- c("RW", "MM", "AR(1)", "ARMA(5,1)", "VAR(13)", "spVAR(13)", "FAVAR(1)", "FAVAR(13)")
 
 for (i in 1:n_windows) { 
   Data_set          <- raw_var[1:(i+init_p-1),]
@@ -557,7 +559,7 @@ for (i in 1:n_windows) {
   M_VAR1           <- VAR(T_VAR,    type = "none", p = 13)
   M_VAR2           <- VAR(T_spVAR,  type = "none", p = 13)
   M_FAVAR1         <- VAR(T_FAVAR,  type = "none", p = 1)
-  M_FAVAR2         <- VAR(T_FAVAR,  type = "none", p = 5)
+  M_FAVAR2         <- VAR(T_FAVAR,  type = "none", p = 13)
   
   fcst[i,1]        <- predict(M_RW,      n.ahead = nahead)$pred[nahead]  
   fcst[i,2]        <- predict(M_MM,      n.ahead = nahead)$pred[nahead]  
@@ -636,7 +638,7 @@ temp1 <- fcst %>%
   mutate(date = index(fcst)) %>% 
   gather(variable, value, -date) 
 
-va <- INFL %>% filter(Date >= "2005-03-01", Date <= "2018-09-01")
+va <- INFL %>% filter(Date >= "2005-03-01", Date <= "2018-11-01")
 tempbg <- temp1 %>% rename("new"="variable") %>% group_by(new) %>% mutate(value=va$Value)
 
 
@@ -689,21 +691,21 @@ ggsave(plot = p7, filename = "GENERATE/FAVAR7.pdf", width = 24, height = 10, uni
 obj <- irf(m, impulse = "FFR", n.ahead = 48, ci = 0.66)
 eigen <- FAVAR_PCA$rotation
 
-val <- obj[1]$irf$FFR[,-c(1,2)] %*% t(eigen) %>% 
-  cbind(.,obj[1]$irf$FFR[,c(1,2)]) %>% 
+val <- obj[1]$irf$FFR[,-c(1,10)] %*% t(eigen) %>% 
+  cbind(.,obj[1]$irf$FFR[,c(1,10)]) %>% 
   as.data.frame %>% 
   mutate(N = 1:49) %>% 
   gather(variable, value, -N)
 
-upp <- obj[2]$Lower$FFR[,-c(1,2)] %*% t(eigen) %>% 
-  cbind(.,obj[2]$Lower$FFR[,c(1,2)]) %>% 
+upp <- obj[2]$Lower$FFR[,-c(1,10)] %*% t(eigen) %>% 
+  cbind(.,obj[2]$Lower$FFR[,c(1,10)]) %>% 
   as.data.frame %>% 
   dplyr::select(-starts_with("X")) %>% 
   mutate(N = 1:49) %>% 
   gather(variable, value, -N)
 
-low <- obj[3]$Upper$FFR[,-c(1,2)] %*% t(eigen) %>% 
-  cbind(.,obj[3]$Upper$FFR[,c(1,2)]) %>% 
+low <- obj[3]$Upper$FFR[,-c(1,10)] %*% t(eigen) %>% 
+  cbind(.,obj[3]$Upper$FFR[,c(1,10)]) %>% 
   as.data.frame %>% 
   dplyr::select(-starts_with("X")) %>% 
   mutate(N = 1:49) %>% 

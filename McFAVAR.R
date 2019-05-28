@@ -192,10 +192,10 @@ m
 
 
 p0 <- variables %>% dplyr::select(INFL, FFR)                                         %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p1 <- variables %>% dplyr::select(INFL, FFR, PC1)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p3 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p5 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
-p8 <- variables %>% dplyr::select(INFL, FFR, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p1 <- variables %>% dplyr::select(INFL, PC1, FFR)                                    %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p3 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, FFR)                          %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p5 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, PC4, PC5, FFR)                %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
+p8 <- variables %>% dplyr::select(INFL, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, FFR) %>% VAR(p = 13) %>% irf(impulse = "FFR", response = "INFL", n.ahead = 48)
 
 df <- rbind(tibble(IRF = p0$irf$FFR[,1],    Lower = p0$Lower$FFR[,1],    Upper = p0$Upper$FFR[,1],    N = c(0:48), type = "0 Faktorere"),
             tibble(IRF = p1$irf$FFR[,1],    Lower = p1$Lower$FFR[,1],    Upper = p1$Upper$FFR[,1],    N = c(0:48), type = "1 Faktorere"),

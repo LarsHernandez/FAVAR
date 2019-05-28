@@ -115,7 +115,7 @@ p1 <- tibble(IC1 = IC1$IC,
        n   = c(1:15)) %>% gather(variable, value, -n) %>% 
   ggplot(aes(n,value)) + 
   geom_vline(data=star, aes(xintercept=value), size=0.3) + 
-  geom_point(shape=21, size=2, fill="white") + 
+  geom_point(shape=21, size=2.5, fill="white") + 
   scale_x_continuous(breaks=c(1:15)) +
   scale_y_continuous(limits = c(-0.27,-0.08), breaks=c(-0.1,-0.15,-0.2,-0.25)) +
   facet_wrap(~variable) + 
@@ -314,43 +314,73 @@ p3 <- df %>% ggplot(aes(N, value, linetype = variable)) +
 
 ggsave(plot = p3, filename = "GENERATE/FAVAR3.pdf", width = 30, height = 6, units = "cm", dpi = 320)
 
+
+p13 <- df %>% group_by(type, variable) %>% 
+   mutate(cum = cumsum(value)) %>% 
+   ungroup() %>% 
+   ggplot(aes(N, cum, linetype = variable)) +
+   geom_hline(aes(yintercept = 0), color="grey") +
+   geom_line(size = 0.3) +
+   facet_wrap(~type, nrow = 1) +
+   scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+   scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
+   labs(x = "Lags", linetype = "") +
+   th + theme(axis.title.y = element_blank(), legend.position = "none")
+
+ggsave(plot = p13, filename = "GENERATE/FAVAR13.pdf", width = 30, height = 6, units = "cm", dpi = 320)
+
+
+
 # IRF ---------------------------------------------------------------------
+
+va <- tibble(INFL = INFL$Value[-c(1,2)], 
+             FFR  = FFR$Value[-c(1,2)])
+
+va <- cbind(FAVAR_T[c("Date")], va, prcomp(FAVAR_T[,-1], rank. = 8)$x)
+m2 <- VAR(va[,-c(1)], p = 13)
+
+ data <- irf(m2, n.ahead = 49, cumulative = F, ci = 0.66)
+ va <- data$irf %>% names
  
- data <- irf(m, n.ahead = 49, cumulative = F, ci=0.66)
- variables <- data$irf %>% names
- 
- ir <- lapply(1:length(variables), function(e){
-   data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(variables[e])) %>%
+ ir <- lapply(1:length(va), function(e){
+   data_to_plot <- data.frame(data %>% `$`(irf) %>% `[[`(va[e])) %>%
      mutate("t" = 1:NROW(.)) %>%
      gather(.,Variable, Value, -t)
    
-   upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(variables[e])) %>%
+   upper_ci <- data.frame(data %>% `$`(Upper) %>% `[[`(va[e])) %>%
      mutate("t" = 1:NROW(.)) %>%
      gather(.,Variable, Upper, -t)
    
-   lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(variables[e]) ) %>%
+   lower_ci <- data.frame(data %>% `$`(Lower) %>% `[[`(va[e]) ) %>%
      mutate("t" = 1:NROW(.)) %>%
      gather(.,Variable, Lower, -t)
    
    res <- inner_join(data_to_plot, upper_ci, c("t","Variable")) %>%
      inner_join(.,lower_ci, c("t","Variable")) %>%
-     mutate(impulse = paste("Shock to", variables[e])) 
+     mutate(impulse = paste("Shock to", va[e])) 
  }) %>% bind_rows
  
  ir$t <- ir$t-1
+
  
-p8 <- ggplot(ir, aes(x = t, y = Value, group = Variable))  +
-   geom_hline(aes(yintercept=0),linetype="solid", color="grey") +
+ 
+p8 <- ir %>% 
+  filter(impulse == "Shock to FFR") %>% 
+  ggplot(aes(x = t, y = Value, group = Variable))  +
+   geom_hline(aes(yintercept = 0),linetype="solid", color="grey") +
    geom_line(size = 0.3) +
    geom_line(aes(x = t, y = Upper), linetype = "dotted", size = 0.3) +
    geom_line(aes(x = t, y = Lower), linetype = "dotted", size = 0.3) +
    scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 6)) +
    scale_y_continuous(position = "right", limits = c(-1,2), breaks = c(-0.3,-0.15,0,0.15,0.3)) +
-   facet_grid(Variable ~ impulse, switch = "y") +
+   facet_wrap(~Variable, scales="free", nrow=2) +
    coord_cartesian(ylim = c(-0.35, 0.35)) +
    th + theme(axis.title.y = element_blank())
  
-ggsave(plot = p8, filename = "GENERATE/FAVAR8.pdf", width = 30, height = 20, units = "cm", dpi = 320)
+ggsave(plot = p8, filename = "GENERATE/FAVAR8b.pdf", width = 30, height = 10, units = "cm", dpi = 320)
+
+
+
 
 
 
@@ -474,23 +504,29 @@ ggsave(plot = p5, filename = "GENERATE/FAVAR5.pdf", width = 30, height = 10, uni
 
 
 
+# GAP ---------------------------------------------------------------------
+bond <- Quandl("FED/SVENY", collapse = "m", api_key = key) %>% 
+  filter(Date >= "1959-01-01", Date < "2019-01-01") %>% 
+  arrange(Date)
 
+SPREAD <- data.frame(Value = c(rnorm(28, mean = 0.4,sd = 0.1),bond$SVENY05 - bond$SVENY02))
+
+spVAR.Data <- xts(cbind(INFL[,2], c(NA, SPREAD$Value), PROD[,2], FFR[,2]), order.by = FFR[,1])[-c(1,2),]
+colnames(spVAR.Data) <- c("INFL", "SPREAD", "PROD", "FFR")
 
 
 # Forcasting --------------------------------------------------------------
-variables <- tibble(INFL =INFL$Value[-c(1,2)], 
-                    FFR = FFR$Value[-c(1,2)])
-variables <- cbind(FAVAR_T[c("Date")], variables, FAVAR_PCA$x)
-
-
+variables <- tibble(INFL = INFL$Value[-c(1,2)], 
+                    FFR  = FFR$Value[-c(1,2)])
+variables <- cbind(FAVAR_T[c("Date")], variables[,1], FAVAR_PCA$x, variables[,2])
 
 raw_var <- FAVAR_T[,-1]
 
 
-Data.Frame <- xts(variables[,c(2,3)], order.by = variables[,1])
+Data.Frame <- xts(variables[,c(2,11)], order.by = variables[,1])
 
-VAR.Data <- xts(cbind(PROD[,2], INFL[,2], FFR[,2]), order.by = FFR[,1])[-c(1,2),]
-colnames(VAR.Data) <- c("PROD", "INFL", "FFR")
+VAR.Data <- xts(cbind(INFL[,2], PROD[,2], FFR[,2]), order.by = FFR[,1])[-c(1,2),]
+colnames(VAR.Data) <- c("INFL", "PROD", "FFR")
 
 
 
@@ -503,7 +539,7 @@ n_windows <- end_p - init_p
 mat       <- data.frame(matrix(0, nrow = (n_windows+1), ncol = noMods))
 fcst      <- xts(mat, order.by = index(Data.Frame[(nrow(Data.Frame) - n_windows):nrow(Data.Frame), ]))
 
-colnames(fcst) <- c("RW", "MM", "AR(1)", "ARMA(5,1)", "VAR(1)", "VAR(13)", "FAVAR(1)", "FAVAR(5)")
+colnames(fcst) <- c("RW", "MM", "AR(1)", "ARMA(5,1)", "VAR(13)", "spVAR(13)", "FAVAR(1)", "FAVAR(5)")
 
 for (i in 1:n_windows) { 
   Data_set          <- raw_var[1:(i+init_p-1),]
@@ -511,14 +547,15 @@ for (i in 1:n_windows) {
   
   T_BASE            <- Data.Frame[1:(i + init_p - 1), 1:2]$INFL
   T_VAR             <- VAR.Data[1:(i + init_p - 1),]
+  T_spVAR             <- spVAR.Data[1:(i + init_p - 1),]
   T_FAVAR           <- Data.Frame[1:(i + init_p - 1), 1:2] %>% merge.xts(Fhat)
 
   M_RW             <- arima(T_BASE, order = c(0,1,0))
   M_MM             <- arima(T_BASE, order = c(0,0,0), include.mean = T)  
   M_AR             <- arima(T_BASE, order = c(1,0,0))  
   M_ARMA           <- arima(T_BASE, order = c(5,0,1))
-  M_VAR1           <- VAR(T_VAR,    type = "none", p = 1)
-  M_VAR2           <- VAR(T_VAR,    type = "none", p = 13)
+  M_VAR1           <- VAR(T_VAR,    type = "none", p = 13)
+  M_VAR2           <- VAR(T_spVAR,  type = "none", p = 13)
   M_FAVAR1         <- VAR(T_FAVAR,  type = "none", p = 1)
   M_FAVAR2         <- VAR(T_FAVAR,  type = "none", p = 5)
   
@@ -599,18 +636,20 @@ temp1 <- fcst %>%
   mutate(date = index(fcst)) %>% 
   gather(variable, value, -date) 
 
-tempbg <- temp1 %>% rename("new"="variable")
+va <- INFL %>% filter(Date >= "2005-03-01", Date <= "2018-09-01")
+tempbg <- temp1 %>% rename("new"="variable") %>% group_by(new) %>% mutate(value=va$Value)
+
+
 
 p6 <- temp1 %>% 
   ggplot(aes(date, value)) + 
-  geom_line(data=tempbg, aes(group=new), alpha = 0.1, size = 0.3) + 
+  geom_line(data=tempbg, alpha = 0.1, size = 0.3) + 
   geom_line(size = 0.3) + 
   scale_x_date(date_breaks = "3 years", date_labels = "%Y") + 
-
   facet_wrap(~variable, nrow=2) + th + theme(axis.title = element_blank()) + 
   coord_cartesian(xlim = c(as.Date("2005-01-01"), as.Date("2019-04-01")))
 
-ggsave(plot = p6, filename = "GENERATE/FAVAR6.pdf", width = 24, height = 10, units = "cm", dpi = 320)
+ggsave(plot = p6, filename = "GENERATE/FAVAR6b.pdf", width = 24, height = 10, units = "cm", dpi = 320)
  
 temp2 <- fcstErr %>% 
    as_tibble %>% 

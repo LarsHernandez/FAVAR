@@ -118,6 +118,19 @@ ggsave(plot = p2, filename = "GENERATE/EXTRA2.pdf", width = 30, height = 8, unit
 
 
 
+p3 <- Quandl("FRED/TOTRESNS", api_key = key) %>% 
+  filter(Date >= "2000-01-01", Date < "2019-01-01") %>% 
+  arrange(Date) %>% 
+  ggplot(aes(Date, Value)) +   
+  geom_line() + 
+  scale_y_continuous(breaks=c(0,500,1000,1500,2000,2500)) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y", limits = c(as.Date("2000-01-01"), as.Date("2019-01-01"))) + 
+  coord_cartesian(xlim = c(as.Date("2000-01-01"), as.Date("2019-01-01"))) +
+  th + theme(axis.title = element_blank())
+
+ggsave(plot = p3, filename = "GENERATE/EXTRA3.pdf", width = 24, height = 6, units = "cm", dpi = 320)
+
+
 
 
 

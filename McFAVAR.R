@@ -217,10 +217,35 @@ p1 <- df %>% ggplot(aes(N, value, linetype = variable)) +
 ggsave(plot = p1, filename = "GENERATE/MC1.pdf", width = 30, height = 6, units = "cm", dpi = 320)
 
 
+p2 <- df %>% group_by(type, variable) %>% 
+  mutate(cum = cumsum(value)) %>% 
+  ungroup() %>% 
+  ggplot(aes(N, cum, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size = 0.3) +
+  facet_wrap(~type, nrow = 1) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+p3 <- df %>% group_by(type, variable) %>% 
+  mutate(cum = cumsum(value)) %>% 
+  ungroup() %>% 
+  ggplot(aes(N, cum, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size = 0.3) +
+  facet_wrap(~type, nrow = 1) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,48), breaks = seq(0, 48, 8)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
 
+pp <- grid.arrange(p13 + labs(title="Quandl data - 96 variable")+ theme(plot.title = element_text(size = 13)),
+             p2 + labs(title="McCracken data - 134 variable") + theme(plot.title = element_text(size = 13)),
+             nrow=2)
 
-
+ggsave(plot = pp, filename = "GENERATE/MCpp.pdf", width = 30, height = 12, units = "cm", dpi = 320)
 # Forcasting --------------------------------------------------------------
 fit.pca <- prcomp(yt_z, rank. = 5, scale. = T)
 
@@ -389,7 +414,17 @@ temp %>%
 
 
 
-
+df %>% group_by(type, variable) %>% 
+  mutate(cum = cumsum(value)) %>% 
+  ungroup() %>% 
+  ggplot(aes(N, cum, linetype = variable)) +
+  geom_hline(aes(yintercept = 0), color="grey") +
+  geom_line(size = 0.3) +
+  facet_wrap(~type, nrow = 1) +
+  scale_linetype_manual(values = c("solid", "dotted", "dotted")) + 
+  scale_x_continuous("Lags (months)", limits = c(0,148), breaks = seq(0, 48, 8)) +
+  labs(x = "Lags", linetype = "") +
+  th + theme(axis.title.y = element_blank(), legend.position = "none")
 
 
 
